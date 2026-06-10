@@ -1,0 +1,17 @@
+@*
+    Top-level Router. Routes are declared via @page directives on the
+    components in Pages/. Anything unmatched falls through to the
+    NotFound view, which still uses MainLayout so the user keeps their
+    topbar/player while navigating away.
+*@
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p class="dim">Page not found.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

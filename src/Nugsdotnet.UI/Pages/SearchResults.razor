@@ -1,0 +1,172 @@
+@*
+    Renders catalog.search results.
+
+    Shape (verified against a live response):
+        Response
+        └─ catalogSearchTypeContainers[]
+           └─ catalogSearchContainers[]
+              ├─ scHeader      ("Artist: Goose", "Songs", etc.)
+              └─ catalogSearchResultItems[]
+                 ├─ artistID/artistName    (always)
+                 ├─ containerID/containerName  (for shows + studio releases)
+                 ├─ performanceDate         (set → it's a live show)
+                 ├─ venueName/venueCity/venueState  (live shows only)
+                 └─ trackID/songID          (non-zero when a song matched)
+
+    We flatten into:
+      * a deduped Artists row at the top (every artist that appeared)
+      * each scHeader section, split into shows (with date) vs releases.
+*@
+
+@if (Data is null)
+{
+    <div class="loading">Searching “@Query”…</div>
+}
+else if (Debug)
+{
+    <pre class="json">@Data.ToJsonString(_pretty)</pre>
+}
+else
+{
+    var r = NugsShape.Unwrap(Data);
+    var typeContainers = NugsShape.Arr(r, "catalogSearchTypeContainers") ?? new();
+
+    // Flatten sections + collect unique artists across all results.
+    var sections = new List<(string? Header, JsonArray Items)>();
+    var artists = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    foreach (var tc in typeContainers)
+    {
+        var containers = NugsShape.Arr(tc, "catalogSearchContainers") ?? new();
+        foreach (var s in containers)
+        {
+            var header = NugsShape.Str(s, "scHeader");
+            var items = NugsShape.Arr(s, "catalogSearchResultItems") ?? new();
+            if (items.Count == 0) continue;
+            sections.Add((header, items));
+
+            foreach (var item in items)
+            {
+                var aid = NugsShape.Str(item, "artistID");
+                var aname = NugsShape.Str(item, "artistName");
+                if (!string.IsNullOrEmpty(aid) && !string.IsNullOrEmpty(aname))
+                    artists.TryAdd(aid!, aname!);
+            }
+        }
+    }
+
+    <h2>Results for “@Query”</h2>
+
+    @if (sections.Count == 0)
+    {
+        <p class="dim">
+            No results. Click <code>json</code> in the top-right to see the
+            raw response.
+        </p>
+    }
+
+    @if (artists.Count > 0)
+    {
+        <h3>Artists</h3>
+        <ul class="list">
+            @foreach (var (id, name) in artists)
+            {
+                <li>
+                    <button class="link" @onclick="() => OnOpenArtist.InvokeAsync(id)">
+                        @name
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+
+    @foreach (var (header, items) in sections)
+    {
+        <h3>@(header ?? "Results")</h3>
+        <ul class="list">
+            @foreach (var item in items)
+            {
+                var trackId = NugsShape.Str(item, "trackID");
+                var songId = NugsShape.Str(item, "songID");
+                var containerId = NugsShape.Str(item, "containerID");
+                var name = NugsShape.Str(item, "containerName") ?? "(untitled)";
+                var date = NugsShape.Str(item, "performanceDate");
+                var venue = NugsShape.Str(item, "venue");
+                var artist = NugsShape.Str(item, "artistName");
+
+                // A real track hit (rare in artist searches but possible)
+                if (!string.IsNullOrEmpty(trackId) && trackId != "0")
+                {
+                    var oneTrack = new List<NowPlaying>
+                    {
+                        new(trackId!, name, artist),
+                    };
+                    <li class="track-row">
+                        <button class="link"
+                                @onclick="() => OnPlay.InvokeAsync(
+                                    new PlayRequest(oneTrack, 0))">
+                            ▶ @name <span class="dim">— @artist</span>
+                        </button>
+                        <div class="track-actions">
+                            <button class="ghost icon" title="Play next" aria-label="Play next"
+                                    @onclick="() => OnPlayNext.InvokeAsync(oneTrack)">↪</button>
+                            <button class="ghost icon" title="Add to queue" aria-label="Add to queue"
+                                    @onclick="() => OnEnqueue.InvokeAsync(oneTrack)">+</button>
+                        </div>
+                    </li>
+                }
+                else if (!string.IsNullOrEmpty(containerId) && containerId != "0")
+                {
+                    <li>
+                        <button class="link"
+                                @onclick="() => OnOpenAlbum.InvokeAsync(containerId!)">
+                            @if (!string.IsNullOrEmpty(date))
+                            {
+                                <span class="date">@FormatDate(date)</span>
+                                <span> </span>
+                                <span>@(string.IsNullOrEmpty(venue) ? name : venue)</span>
+                            }
+                            else
+                            {
+                                <span>@name</span>
+                            }
+                            @if (string.IsNullOrEmpty(date))
+                            {
+                                <span class="dim"> — @artist</span>
+                            }
+                        </button>
+                    </li>
+                }
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public System.Text.Json.Nodes.JsonNode? Data { get; set; }
+    [Parameter, EditorRequired] public string Query { get; set; } = "";
+    [Parameter] public bool Debug { get; set; }
+    [Parameter] public EventCallback<string> OnOpenAlbum { get; set; }
+    [Parameter] public EventCallback<string> OnOpenArtist { get; set; }
+    [Parameter] public EventCallback<PlayRequest> OnPlay { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<NowPlaying>> OnPlayNext { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<NowPlaying>> OnEnqueue { get; set; }
+
+    private static readonly System.Text.Json.JsonSerializerOptions _pretty
+        = new() { WriteIndented = true };
+
+    /// <summary>
+    /// nugs returns dates as "M/d/yyyy" (no leading zeros). Render as ISO
+    /// for sorting-friendly display, fall back to raw if unparseable.
+    /// </summary>
+    private static string FormatDate(string raw)
+    {
+        if (DateTime.TryParseExact(
+                raw, "M/d/yyyy", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var dt))
+        {
+            return dt.ToString("yyyy-MM-dd");
+        }
+        return raw;
+    }
+}

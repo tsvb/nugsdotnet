@@ -1,0 +1,29 @@
+@page "/artist/{Id}"
+@inject INugsGateway Api
+@inject NavigationManager Nav
+
+@if (_error is not null)
+{
+    <div class="error">@_error</div>
+}
+<ArtistDetail Data="_data" Debug="false" OnOpenAlbum="OpenAlbum" />
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private System.Text.Json.Nodes.JsonNode? _data;
+    private string? _error;
+    private string? _lastId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrEmpty(Id) || Id == _lastId) return;
+        _lastId = Id;
+        _data = null;
+        _error = null;
+        try { _data = await Api.GetArtistShowsAsync(Id); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private void OpenAlbum(string id) => Nav.NavigateTo($"/album/{id}");
+}

@@ -1,0 +1,45 @@
+@inject INugsGateway Api
+
+<div class="login">
+    <h1>nugsdotnet</h1>
+    <form @onsubmit="Submit" @onsubmit:preventDefault>
+        <label class="checkbox">
+            <input type="checkbox" @bind="_useEnv" />
+            Use credentials from <code>appsettings.json</code> / env
+        </label>
+        @if (!_useEnv)
+        {
+            <input type="email" placeholder="email" @bind="_email" required />
+            <input type="password" placeholder="password" @bind="_password" required />
+        }
+        <button disabled="@_busy">@(_busy ? "Signing in…" : "Sign in")</button>
+        @if (!string.IsNullOrEmpty(_err))
+        {
+            <div class="error">@_err</div>
+        }
+    </form>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnLoggedIn { get; set; }
+
+    private bool _useEnv = true;
+    private string _email = "";
+    private string _password = "";
+    private bool _busy;
+    private string? _err;
+
+    private async Task Submit()
+    {
+        _busy = true;
+        _err = null;
+        try
+        {
+            if (_useEnv) await Api.LoginAsync();
+            else await Api.LoginAsync(_email, _password);
+            await OnLoggedIn.InvokeAsync();
+        }
+        catch (Exception e) { _err = e.Message; }
+        finally { _busy = false; }
+    }
+}

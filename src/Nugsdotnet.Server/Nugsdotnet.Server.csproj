@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>nugsdotnet-server</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nugsdotnet.Client\Nugsdotnet.Client.csproj" />
+    <ProjectReference Include="..\Nugsdotnet.Core\Nugsdotnet.Core.csproj" />
+    <ProjectReference Include="..\Nugsdotnet.Shared\Nugsdotnet.Shared.csproj" />
+  </ItemGroup>
+</Project>

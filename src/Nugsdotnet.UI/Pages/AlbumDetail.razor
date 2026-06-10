@@ -1,0 +1,187 @@
+@*
+    Renders catalog.container (a show or studio release).
+
+    Shape (verified):
+        Response
+        ├─ containerID, containerInfo, artistName, artistID
+        ├─ venue / venueName / venueCity / venueState
+        ├─ performanceDate ("M/d/yyyy"), performanceDateFormatted ("yyyy/MM/dd")
+        ├─ hhmmssTotalRunningTime ("hh:mm:ss")
+        ├─ notes[]: { note (HTML string) }
+        ├─ tracks[]:
+        │    { trackID, songTitle, hhmmssTotalRunningTime,
+        │      discNum, trackNum, setNum }
+        ├─ songs[]: condensed version of tracks
+        └─ videoChapters[]: { chaptername, chapterSeconds }
+
+    Convention for setNum: 1/2/3 are Set 1/2/3; 4+ are Encore / Encore 2 / …
+    A studio release has setNum=0 across the board; we render those as a
+    single un-headered list.
+*@
+
+@if (Data is null)
+{
+    <div class="loading">Loading…</div>
+}
+else if (Debug)
+{
+    <pre class="json">@Data.ToJsonString(_pretty)</pre>
+}
+else
+{
+    var r = NugsShape.Unwrap(Data);
+    var title = NugsShape.Str(r, "containerInfo", "ContainerInfo", "title") ?? "(album)";
+    var artist = NugsShape.Str(r, "artistName", "ArtistName") ?? "";
+    var venue = NugsShape.Str(r, "venue");
+    var date = NugsShape.Str(r, "performanceDateFormatted", "performanceDate");
+    var totalRT = NugsShape.Str(r, "hhmmssTotalRunningTime");
+    var rawTracks = NugsShape.Arr(r, "tracks", "Tracks", "songs", "Songs") ?? new();
+    var notes = NugsShape.Arr(r, "notes") ?? new();
+
+    // Build the flat queue list and the display-enriched rows in one pass.
+    // The queue list stays in performance order so autoplay traverses
+    // Set 1 → Set 2 → Encore correctly.
+    var queue = new List<NowPlaying>(rawTracks.Count);
+    var rows = new List<TrackRow>(rawTracks.Count);
+    var idx = 0;
+    foreach (var t in rawTracks)
+    {
+        var id = NugsShape.Str(t, "trackID", "TrackID", "trackId", "id");
+        if (string.IsNullOrEmpty(id)) continue;
+        var songTitle = NugsShape.Str(t, "songTitle", "SongTitle", "title");
+        queue.Add(new NowPlaying(id!, songTitle, artist, title));
+        rows.Add(new TrackRow(
+            QueueIdx: idx++,
+            Title: songTitle ?? "(untitled)",
+            Duration: NugsShape.Str(t, "hhmmssTotalRunningTime"),
+            SetNum: ParseInt(NugsShape.Str(t, "setNum")),
+            TrackNum: ParseInt(NugsShape.Str(t, "trackNum"))));
+    }
+
+    var groups = rows
+        .GroupBy(x => x.SetNum)
+        .OrderBy(g => g.Key)
+        .ToList();
+    var showSetHeaders = groups.Count > 1;
+
+    <h2>@title</h2>
+    <h3 class="dim">@artist</h3>
+
+    @if (!string.IsNullOrEmpty(venue) || !string.IsNullOrEmpty(date) || !string.IsNullOrEmpty(totalRT))
+    {
+        <div class="album-meta">
+            @if (!string.IsNullOrEmpty(date))
+            {
+                <span class="date">@FormatDate(date!)</span>
+            }
+            @if (!string.IsNullOrEmpty(venue))
+            {
+                <span>@venue.Trim()</span>
+            }
+            @if (!string.IsNullOrEmpty(totalRT))
+            {
+                <span class="dim">@totalRT · @rows.Count tracks</span>
+            }
+        </div>
+    }
+
+    @if (queue.Count > 0)
+    {
+        <div class="album-actions">
+            <button class="ghost" title="Play all from the top"
+                    @onclick="() => OnPlay.InvokeAsync(new PlayRequest(queue, 0))">▶ Play all</button>
+            <button class="ghost" title="Insert after the current track"
+                    @onclick="() => OnPlayNext.InvokeAsync(queue)">↪ Play next</button>
+            <button class="ghost" title="Add to the end of the queue"
+                    @onclick="() => OnEnqueue.InvokeAsync(queue)">+ Queue</button>
+        </div>
+    }
+
+    @if (notes.Count > 0)
+    {
+        <details class="album-notes" open>
+            <summary>Show notes</summary>
+            @foreach (var n in notes)
+            {
+                var html = NugsShape.Str(n, "note");
+                if (!string.IsNullOrEmpty(html))
+                {
+                    @((MarkupString)html!)
+                }
+            }
+        </details>
+    }
+
+    @foreach (var group in groups)
+    {
+        @if (showSetHeaders)
+        {
+            <h3>@SetLabel(group.Key)</h3>
+        }
+        <ol class="tracklist">
+            @foreach (var row in group)
+            {
+                var captured = row;  // closure capture
+                <li class="track-row">
+                    <button class="link tracklink"
+                            @onclick="() => OnPlay.InvokeAsync(new PlayRequest(queue, captured.QueueIdx))">
+                        <span class="tracknum">@captured.TrackNum.</span>
+                        <span class="tracktitle">@captured.Title</span>
+                        @if (!string.IsNullOrEmpty(captured.Duration))
+                        {
+                            <span class="trackdur dim">@captured.Duration</span>
+                        }
+                    </button>
+                    <div class="track-actions">
+                        <button class="ghost icon" title="Play next" aria-label="Play next"
+                                @onclick="() => OnPlayNext.InvokeAsync(new[] { queue[captured.QueueIdx] })">↪</button>
+                        <button class="ghost icon" title="Add to queue" aria-label="Add to queue"
+                                @onclick="() => OnEnqueue.InvokeAsync(new[] { queue[captured.QueueIdx] })">+</button>
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public System.Text.Json.Nodes.JsonNode? Data { get; set; }
+    [Parameter] public bool Debug { get; set; }
+    [Parameter] public EventCallback<PlayRequest> OnPlay { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<NowPlaying>> OnPlayNext { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<NowPlaying>> OnEnqueue { get; set; }
+
+    private static readonly System.Text.Json.JsonSerializerOptions _pretty
+        = new() { WriteIndented = true };
+
+    private sealed record TrackRow(int QueueIdx, string Title, string? Duration, int SetNum, int TrackNum);
+
+    /// <summary>
+    /// nugs's setNum convention: 1/2/3 are sets, 4+ are encores.
+    /// Studio releases use setNum=0 — we collapse those to no header.
+    /// </summary>
+    private static string SetLabel(int n) => n switch
+    {
+        0 => "Tracks",
+        1 => "Set 1",
+        2 => "Set 2",
+        3 => "Set 3",
+        4 => "Encore",
+        _ => $"Encore {n - 3}",
+    };
+
+    private static int ParseInt(string? s) => int.TryParse(s, out var v) ? v : 0;
+
+    private static string FormatDate(string raw)
+    {
+        if (DateTime.TryParseExact(raw, "yyyy/MM/dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d1))
+            return d1.ToString("yyyy-MM-dd");
+        if (DateTime.TryParseExact(raw, "M/d/yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d2))
+            return d2.ToString("yyyy-MM-dd");
+        return raw;
+    }
+}

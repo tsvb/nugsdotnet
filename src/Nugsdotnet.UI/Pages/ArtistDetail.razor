@@ -1,0 +1,186 @@
+@inject IMediaUrls MediaUrls
+
+@*
+    Artist landing page.
+
+    catalog.containersAll returns Response.containers[] — each container is a
+    studio release (performanceDate == null) or a live show (performanceDate
+    set). We split them, render releases as a cover-art grid, and group
+    shows by year as collapsible sections.
+
+    Images come from nugs.net's public image host at /images/...
+    Pagination: TODO — we currently load the first 100 only (most recent).
+*@
+
+@if (Data is null)
+{
+    <div class="loading">Loading…</div>
+}
+else if (Debug)
+{
+    <pre class="json">@Data.ToJsonString(_pretty)</pre>
+}
+else
+{
+    var r = NugsShape.Unwrap(Data);
+    var containers = NugsShape.Arr(r, "containers", "Containers") ?? new();
+
+    var artistName = containers.Count > 0
+        ? NugsShape.Str(containers[0], "artistName", "ArtistName")
+        : "(unknown artist)";
+
+    // Split into studio releases vs live shows.
+    var releases = new List<System.Text.Json.Nodes.JsonNode>();
+    var shows = new List<(System.Text.Json.Nodes.JsonNode Container, int Year)>();
+    foreach (var c in containers)
+    {
+        if (c is null) continue;
+        var date = NugsShape.Str(c, "performanceDate");
+        if (string.IsNullOrEmpty(date))
+        {
+            releases.Add(c);
+        }
+        else
+        {
+            shows.Add((c, ParseYear(date)));
+        }
+    }
+
+    var showsByYear = shows
+        .GroupBy(x => x.Year)
+        .OrderByDescending(g => g.Key)
+        .ToList();
+    var newestYear = showsByYear.FirstOrDefault()?.Key ?? 0;
+
+    <h1 class="artist-name">@artistName</h1>
+    <div class="artist-meta">
+        @if (releases.Count > 0)
+        {
+            <span>@releases.Count release@(releases.Count == 1 ? "" : "s")</span>
+        }
+        @if (shows.Count > 0)
+        {
+            <span>@shows.Count show@(shows.Count == 1 ? "" : "s")</span>
+        }
+        @if (releases.Count == 0 && shows.Count == 0)
+        {
+            <span class="dim">No containers in this page.</span>
+        }
+    </div>
+
+    @if (releases.Count > 0)
+    {
+        <h3>Releases</h3>
+        <div class="release-grid">
+            @foreach (var rel in releases)
+            {
+                var id = NugsShape.Str(rel, "containerID", "ContainerID", "id");
+                if (string.IsNullOrEmpty(id)) continue;
+                var name = NugsShape.Str(rel, "containerInfo", "ContainerInfo", "title") ?? "(untitled)";
+                var img = ImageUrl(rel);
+                var capturedId = id;
+                <button class="release-card"
+                        title="@name"
+                        @onclick="() => OnOpenAlbum.InvokeAsync(capturedId)">
+                    @if (!string.IsNullOrEmpty(img))
+                    {
+                        <img src="@img" alt="@name" loading="lazy" />
+                    }
+                    else
+                    {
+                        <div class="release-noart"></div>
+                    }
+                    <span class="release-title">@name</span>
+                </button>
+            }
+        </div>
+    }
+
+    @if (shows.Count > 0)
+    {
+        <h3>Shows</h3>
+        @foreach (var group in showsByYear)
+        {
+            var isNewest = group.Key == newestYear;
+            <details class="year-group" open="@isNewest">
+                <summary>
+                    <span class="year-label">@group.Key</span>
+                    <span class="dim">@group.Count() show@(group.Count() == 1 ? "" : "s")</span>
+                </summary>
+                <ul class="list" style="margin-top: 8px;">
+                    @foreach (var (show, _) in group.OrderByDescending(x => ParseDate(NugsShape.Str(x.Container, "performanceDate"))))
+                    {
+                        var id = NugsShape.Str(show, "containerID", "ContainerID", "id");
+                        if (string.IsNullOrEmpty(id)) continue;
+                        var date = NugsShape.Str(show, "performanceDate");
+                        var venue = NugsShape.Str(show, "venue");
+                        var name = NugsShape.Str(show, "containerInfo", "ContainerInfo", "title") ?? "";
+                        var capturedId = id;
+                        <li>
+                            <button class="link"
+                                    @onclick="() => OnOpenAlbum.InvokeAsync(capturedId)">
+                                @if (!string.IsNullOrEmpty(date))
+                                {
+                                    <span class="date">@FormatDate(date)</span>
+                                }
+                                <span>@(string.IsNullOrEmpty(venue) ? name : venue.Trim())</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            </details>
+        }
+        <p class="dim" style="margin-top: 16px; font-size: 12px;">
+            Showing the @containers.Count most-recent containers.
+            Older shows available via the API but pagination isn't wired yet.
+        </p>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public System.Text.Json.Nodes.JsonNode? Data { get; set; }
+    [Parameter] public bool Debug { get; set; }
+    [Parameter] public EventCallback<string> OnOpenAlbum { get; set; }
+
+    private static readonly System.Text.Json.JsonSerializerOptions _pretty
+        = new() { WriteIndented = true };
+
+    /// <summary>
+    /// Build a URL pointing at our /api/image proxy so the WebView never sends
+    /// nugs.net session cookies along with each fetch. IMediaUrls resolves the
+    /// proxy's base per head (same-origin on web, loopback in the native app).
+    /// </summary>
+    private string? ImageUrl(System.Text.Json.Nodes.JsonNode container)
+    {
+        var img = container["img"];
+        if (img is null) return null;
+        var rel = NugsShape.Str(img, "url");
+        if (string.IsNullOrEmpty(rel)) return null;
+        // Already absolute? Pass through (rare — most are paths starting with /images/).
+        if (rel.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return rel;
+        return MediaUrls.ImageUrl(rel!);
+    }
+
+    private static int ParseYear(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return 0;
+        var parts = raw.Split('/');
+        if (parts.Length >= 3 && int.TryParse(parts[2], out var y)) return y;
+        return 0;
+    }
+
+    private static DateTime ParseDate(string? raw)
+    {
+        if (DateTime.TryParseExact(raw ?? "", "M/d/yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d))
+            return d;
+        return DateTime.MinValue;
+    }
+
+    private static string FormatDate(string raw)
+    {
+        var d = ParseDate(raw);
+        return d == DateTime.MinValue ? raw : d.ToString("yyyy-MM-dd");
+    }
+}

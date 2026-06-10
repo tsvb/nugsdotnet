@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Endpoints.cs uses minimal-API types (IEndpointRouteBuilder, Results, …)
+         and NugsClient/TokenStore use hosting/logging abstractions. Both
+         consumers (the web Server and the MAUI loopback host) are ASP.NET Core
+         hosts, so a framework reference is the right dependency. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nugsdotnet.Shared\Nugsdotnet.Shared.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,48 @@
+@page "/search"
+@inject INugsGateway Api
+@inject NavigationManager Nav
+@inject PlayerService Player
+
+@*
+    Routed search results. URL: /search?q={query}. Re-fetches whenever the
+    query string changes (typing in the topbar updates the URL via
+    NavigationManager, which calls SetParametersAsync on the active page).
+*@
+
+@if (_error is not null)
+{
+    <div class="error">@_error</div>
+}
+<SearchResults Data="_data"
+               Query="@(Query ?? "")"
+               Debug="false"
+               OnOpenAlbum="OpenAlbum"
+               OnOpenArtist="OpenArtist"
+               OnPlay="Play"
+               OnPlayNext="PlayNext"
+               OnEnqueue="Enqueue" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    private System.Text.Json.Nodes.JsonNode? _data;
+    private string? _error;
+    private string? _lastQuery;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Query) || Query == _lastQuery) return;
+        _lastQuery = Query;
+        _data = null;
+        _error = null;
+        try { _data = await Api.SearchAsync(Query); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private void OpenAlbum(string id) => Nav.NavigateTo($"/album/{id}");
+    private void OpenArtist(string id) => Nav.NavigateTo($"/artist/{id}");
+    private void Play(PlayRequest req) => Player.Play(req);
+    private void PlayNext(IReadOnlyList<NowPlaying> tracks) => Player.PlayNext(tracks);
+    private void Enqueue(IReadOnlyList<NowPlaying> tracks) => Player.Enqueue(tracks);
+}
