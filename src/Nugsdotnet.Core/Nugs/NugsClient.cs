@@ -319,7 +319,12 @@ public sealed class NugsClient
         {
             req.Headers.TryAddWithoutValidation("Range", rangeHeader);
         }
-        return await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        // The typed client has an infinite timeout (bodies stream for the whole
+        // track). Bound only connect + response-headers here so a dead upstream
+        // still fails fast; the caller's token governs the body copy afterward.
+        using var headerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        headerCts.CancelAfter(TimeSpan.FromSeconds(30));
+        return await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, headerCts.Token);
     }
 
     /// <summary>

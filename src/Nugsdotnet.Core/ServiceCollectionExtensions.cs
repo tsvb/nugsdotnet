@@ -15,9 +15,12 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddNugsCore(
         this IServiceCollection services, string tokenPath)
     {
+        // No global timeout: audio bodies stream for the whole track (long FLAC
+        // sets, plus a preload connection opened early while another track
+        // plays). FetchAudioAsync bounds connect+headers per request instead.
         services.AddHttpClient<NugsClient>(c =>
         {
-            c.Timeout = TimeSpan.FromMinutes(5);
+            c.Timeout = Timeout.InfiniteTimeSpan;
         });
         services.AddSingleton(new TokenStore(tokenPath));
         services.AddSingleton<StreamInspector>();
