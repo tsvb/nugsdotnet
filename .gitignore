@@ -8,6 +8,9 @@ obj/
 .idea/
 tokens.json
 
+# --- packaging build output ----------------------------------------------
+packaging/Output/
+
 # --- legacy Node scaffold (will be removed) ------------------------------
 node_modules/
 dist/
