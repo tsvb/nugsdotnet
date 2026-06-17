@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+# NOTE: InstallerUrl and InstallerSha256 are placeholders. The release pipeline
+# (Komac) overwrites them per release with the real GitHub Release asset URL and
+# its computed SHA256. The all-zero hash is format-valid so `winget validate`
+# passes on this template.
+PackageIdentifier: tsvb.nugsdotnet
+PackageVersion: 0.2.0
+InstallerType: inno
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+UpgradeBehavior: install
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/tsvb/nugsdotnet/releases/download/v0.2.0/nugsdotnet-0.2.0-x64-setup.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+ManifestType: installer
+ManifestVersion: 1.6.0

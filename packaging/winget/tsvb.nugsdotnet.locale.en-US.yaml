@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: tsvb.nugsdotnet
+PackageVersion: 0.2.0
+PackageLocale: en-US
+Publisher: Tim Vanbenschoten
+PublisherUrl: https://github.com/tsvb
+PackageName: nugsdotnet
+PackageUrl: https://github.com/tsvb/nugsdotnet
+License: Proprietary
+ShortDescription: A fast personal local web client for nugs.net.
+Description: >-
+  A personal local web client for nugs.net with fast search, better queue and
+  playlist UX, and global keyboard shortcuts. Runs against your own nugs
+  subscription; downloads, redistributes, and strips no content.
+Moniker: nugsdotnet
+Tags:
+  - nugs
+  - music
+  - audio
+  - blazor
+  - maui
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
