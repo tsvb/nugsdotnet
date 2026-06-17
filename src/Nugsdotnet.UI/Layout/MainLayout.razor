@@ -182,7 +182,11 @@ else
     /// Sync handler that schedules the async work; async-void would silently
     /// swallow exceptions.
     /// </summary>
-    private void OnTrackChangeRequested() => _ = StartPlaybackAsync();
+    private void OnTrackChangeRequested(TrackChangeKind kind)
+    {
+        if (kind == TrackChangeKind.PreloadOnly) return;  // preload wired up in a later task
+        _ = StartPlaybackAsync();
+    }
 
     private async Task StartPlaybackAsync()
     {

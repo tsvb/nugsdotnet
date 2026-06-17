@@ -20,6 +20,14 @@ public sealed record PlayRequest(IReadOnlyList<NowPlaying> Tracks, int StartInde
 public enum QueueOp { Enqueued, PlayingNext }
 
 /// <summary>
+/// Why a track change fired, so the layout knows whether to cold-load the
+/// active element (<see cref="Fresh"/>), swap to the already-preloaded idle
+/// element (<see cref="Advance"/>), or only re-point preload without touching
+/// the audible element (<see cref="PreloadOnly"/>).
+/// </summary>
+public enum TrackChangeKind { Fresh, Advance, PreloadOnly }
+
+/// <summary>
 /// Live runtime snapshot of the &lt;audio&gt; element, pushed from JS interop.
 /// Held centrally by <see cref="PlayerService"/> so the transport and the
 /// dashboard share one source of truth for paused / position / volume.
@@ -63,7 +71,11 @@ public sealed class PlayerService
     public event Action? StateChanged;
 
     /// <summary>Layout listens to this and invokes JS interop to actually play.</summary>
-    public event Action? TrackChangeRequested;
+    public event Action<TrackChangeKind>? TrackChangeRequested;
+
+    /// <summary>The track that will play after the current one — what the idle
+    /// element should preload. Null at the end of the queue.</summary>
+    public string? NextTrackId => HasNext ? _queue[_index + 1].TrackId : null;
 
     /// <summary>
     /// Fired when tracks are added without replacing the queue (enqueue /
@@ -95,7 +107,7 @@ public sealed class PlayerService
         if (req.Tracks.Count == 0) return;
         _queue.Clear();
         _queue.AddRange(req.Tracks);
-        StartAt(Math.Clamp(req.StartIndex, 0, _queue.Count - 1));
+        StartAt(Math.Clamp(req.StartIndex, 0, _queue.Count - 1), TrackChangeKind.Fresh);
     }
 
     /// <summary>
@@ -113,12 +125,13 @@ public sealed class PlayerService
         _queue.AddRange(tracks);
         if (startHere)
         {
-            StartAt(firstNew);
+            StartAt(firstNew, TrackChangeKind.Fresh);
         }
         else
         {
             StateChanged?.Invoke();
             QueueChanged?.Invoke(QueueOp.Enqueued);
+            TrackChangeRequested?.Invoke(TrackChangeKind.PreloadOnly);
         }
     }
 
@@ -135,13 +148,14 @@ public sealed class PlayerService
         {
             var firstNew = _queue.Count;
             _queue.AddRange(tracks);
-            StartAt(firstNew);
+            StartAt(firstNew, TrackChangeKind.Fresh);
         }
         else
         {
             _queue.InsertRange(_index + 1, tracks);
             StateChanged?.Invoke();
             QueueChanged?.Invoke(QueueOp.PlayingNext);
+            TrackChangeRequested?.Invoke(TrackChangeKind.PreloadOnly);
         }
     }
 
@@ -149,7 +163,7 @@ public sealed class PlayerService
     public void JumpTo(int index)
     {
         if (index < 0 || index >= _queue.Count || index == _index) return;
-        StartAt(index);
+        StartAt(index, TrackChangeKind.Fresh);
     }
 
     /// <summary>
@@ -168,36 +182,38 @@ public sealed class PlayerService
             _index = 0;
             _ended = false;
             StateChanged?.Invoke();
-            TrackChangeRequested?.Invoke();  // emptied → layout stops the audio
+            TrackChangeRequested?.Invoke(TrackChangeKind.Fresh);  // emptied → layout stops
         }
         else if (index < _index)
         {
             _index--;                       // keep the cursor on the same track
             StateChanged?.Invoke();
+            TrackChangeRequested?.Invoke(TrackChangeKind.PreloadOnly); // next may have shifted
         }
         else if (wasCurrent)
         {
             _index = Math.Min(_index, _queue.Count - 1);
             _ended = false;
             StateChanged?.Invoke();
-            TrackChangeRequested?.Invoke();  // play whatever now occupies the slot
+            TrackChangeRequested?.Invoke(TrackChangeKind.Fresh);  // play whatever now occupies the slot
         }
         else
         {
-            StateChanged?.Invoke();          // removed an upcoming track
+            StateChanged?.Invoke();
+            TrackChangeRequested?.Invoke(TrackChangeKind.PreloadOnly); // removed an upcoming track
         }
     }
 
     public void Next()
     {
         if (!HasNext) return;
-        StartAt(_index + 1);
+        StartAt(_index + 1, TrackChangeKind.Advance);
     }
 
     public void Previous()
     {
         if (!HasPrevious) return;
-        StartAt(_index - 1);
+        StartAt(_index - 1, TrackChangeKind.Fresh);
     }
 
     public void Clear()
@@ -206,14 +222,18 @@ public sealed class PlayerService
         _index = 0;
         _ended = false;
         StateChanged?.Invoke();
-        TrackChangeRequested?.Invoke();  // nothing current → layout stops the audio
+        TrackChangeRequested?.Invoke(TrackChangeKind.Fresh);  // nothing current → layout stops the audio
     }
 
     /// <summary>Fired by the audio element's `ended` event in MainLayout.</summary>
     public void HandleEnded()
     {
         if (HasNext) Next();
-        else _ended = true;  // queue finished — next enqueue/play-next restarts playback
+        else
+        {
+            _ended = true;  // queue finished — next enqueue/play-next restarts playback
+            TrackChangeRequested?.Invoke(TrackChangeKind.PreloadOnly);  // clear the stale preload
+        }
     }
 
     /// <summary>
@@ -222,11 +242,11 @@ public sealed class PlayerService
     /// side-effect events. Shared by Play/Next/Previous and the idle-start path
     /// of Enqueue/PlayNext.
     /// </summary>
-    private void StartAt(int index)
+    private void StartAt(int index, TrackChangeKind kind)
     {
         _index = index;
         _ended = false;
         StateChanged?.Invoke();
-        TrackChangeRequested?.Invoke();
+        TrackChangeRequested?.Invoke(kind);
     }
 }
