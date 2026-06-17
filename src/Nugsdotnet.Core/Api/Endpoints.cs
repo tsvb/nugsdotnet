@@ -132,11 +132,15 @@ public static class Endpoints
             CancellationToken ct) =>
         {
             var session = await nugs.GetSessionAsync(ct);
-            var pick = await nugs.ResolveBestStreamAsync(trackId, session, ct);
+            // Reuse a recently-resolved pick (preload of N+1, a cold-load
+            // fallback, or a replay) instead of re-probing all four platforms.
+            var pick = inspector.TryGetResolvedPick(trackId)
+                ?? await nugs.ResolveBestStreamAsync(trackId, session, ct);
             if (pick is null)
             {
                 return Results.NotFound(new ErrorResponse("no stream"));
             }
+            inspector.CacheResolvedPick(trackId, pick);  // read-through reuse
             // Seed the dashboard cache so a parallel /stream-info request reuses
             // this pick instead of re-probing all four platforms.
             inspector.StorePick(trackId, pick);

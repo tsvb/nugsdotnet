@@ -24,6 +24,11 @@ public sealed class StreamInspector
     // Picks seeded by /api/play, reused to avoid a second 4-platform probe.
     private readonly ConcurrentDictionary<string, StreamPick> _seededPicks = new();
 
+    // Resolved picks reused across requests (preload, eventual play, cold-load
+    // fallback, replay) — read-through and NOT single-use, unlike _seededPicks
+    // which the dashboard's /stream-info consumes exactly once.
+    private readonly ConcurrentDictionary<string, (StreamPick Pick, DateTimeOffset ExpiresAt)> _resolvedPicks = new();
+
     // Fully-built entries (pick + parsed specs). Lazy<Task> ensures exactly one
     // build runs per trackId even under concurrent /play + /stream-info hits.
     private readonly ConcurrentDictionary<string, Lazy<Task<CachedEntry?>>> _cache = new();
@@ -44,6 +49,23 @@ public sealed class StreamInspector
     /// lazily on the first <see cref="GetStreamInfoAsync"/>.
     /// </summary>
     public void StorePick(string trackId, StreamPick pick) => _seededPicks[trackId] = pick;
+
+    /// <summary>Cache a freshly-resolved pick so preload + the eventual play
+    /// (and any cold-load fallback / replay) reuse it instead of re-probing.</summary>
+    public void CacheResolvedPick(string trackId, StreamPick pick) =>
+        _resolvedPicks[trackId] = (pick, DateTimeOffset.UtcNow + Ttl);
+
+    /// <summary>Return a cached pick if present and unexpired, WITHOUT removing
+    /// it. Null when absent or stale (signed CDN URLs rotate within the TTL).</summary>
+    public StreamPick? TryGetResolvedPick(string trackId)
+    {
+        if (_resolvedPicks.TryGetValue(trackId, out var e))
+        {
+            if (e.ExpiresAt > DateTimeOffset.UtcNow) return e.Pick;
+            _resolvedPicks.TryRemove(trackId, out _);
+        }
+        return null;
+    }
 
     public async Task<StreamInfoResponse?> GetStreamInfoAsync(
         string trackId, Session session, NugsClient nugs, CancellationToken ct)
