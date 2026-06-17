@@ -116,17 +116,23 @@ window.audioInterop = {
         if (!incoming || !incoming.src || incoming._preloadFailed) return false;
         if (!this._isReady(incoming)) return false;
 
-        // Flip FIRST so clearing the outgoing element's src (which can emit an
-        // 'error') is treated as an idle-element error and swallowed.
+        // Flip FIRST so the outgoing element is now the IDLE one: any 'error'
+        // from tearing it down below is treated as an idle-element event and
+        // swallowed.
         this._active = 1 - this._active;
         this._rebufferCount = 0;
+
+        // Start the incoming element IMMEDIATELY — before binding telemetry or
+        // touching the outgoing element — so nothing on the main thread delays or
+        // glitches the new audio's first sample. The outgoing teardown happens
+        // only after play() has been kicked off.
+        const p = incoming.play();
+        this._bindStats(incoming);           // telemetry follows the audible element
         if (outgoing) {
             try { outgoing.pause(); } catch (e) { }
             outgoing.removeAttribute('src');
             try { outgoing.load(); } catch (e) { }
         }
-        this._bindStats(incoming);           // telemetry follows the audible element
-        const p = incoming.play();
         return (p && typeof p.then === 'function') ? p : Promise.resolve();
     },
 
