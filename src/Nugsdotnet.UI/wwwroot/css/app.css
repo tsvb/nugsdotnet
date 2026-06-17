@@ -53,6 +53,28 @@ body::after {
     background: radial-gradient(120% 100% at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.5) 100%);
 }
 
+/* ── themed scrollbars ────────────────────────────────────────────────────
+   Replace WebView2's chunky grey default with slim brushed-bronze rails that
+   warm to amber on hover. Webkit pseudo-elements drive Chromium/WKWebView;
+   scrollbar-color is the standard fallback. */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    /* transparent border + padding-box clip leaves breathing room around a slim thumb */
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent);
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
 .app {
     display: grid;
     grid-template-rows: auto 1fr auto;
@@ -270,6 +292,17 @@ button.link:hover {
 }
 .album-header-text { flex: 1; min-width: 240px; }
 .album-header-text h2 { margin-top: 0; }
+/* artist name in the show header doubles as a link back to the artist's recordings */
+button.artist-link {
+    background: none; border: none; padding: 0; margin: 0;
+    font: inherit; color: inherit;
+    letter-spacing: inherit; text-transform: inherit;
+    cursor: pointer; transition: color 0.1s, text-shadow 0.1s;
+}
+button.artist-link:hover {
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--glow);
+}
 .album-cover {
     width: 230px; aspect-ratio: 290 / 160; object-fit: cover;
     flex: none; border-radius: 4px;

@@ -1,13 +1,15 @@
 @page "/album/{Id}"
 @inject INugsGateway Api
 @inject PlayerService Player
+@inject NavigationManager Nav
 
 @if (_error is not null)
 {
     <div class="error">@_error</div>
 }
 <AlbumDetail Data="_data" Debug="false"
-             OnPlay="Play" OnPlayNext="PlayNext" OnEnqueue="Enqueue" />
+             OnPlay="Play" OnPlayNext="PlayNext" OnEnqueue="Enqueue"
+             OnOpenArtist="OpenArtist" />
 
 @code {
     [Parameter] public string Id { get; set; } = "";
@@ -29,4 +31,5 @@
     private void Play(PlayRequest req) => Player.Play(req);
     private void PlayNext(IReadOnlyList<NowPlaying> tracks) => Player.PlayNext(tracks);
     private void Enqueue(IReadOnlyList<NowPlaying> tracks) => Player.Enqueue(tracks);
+    private void OpenArtist(string id) => Nav.NavigateTo($"/artist/{id}");
 }

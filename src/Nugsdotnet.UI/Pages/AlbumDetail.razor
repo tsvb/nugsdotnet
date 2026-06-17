@@ -34,6 +34,7 @@ else
     var r = NugsShape.Unwrap(Data);
     var title = NugsShape.Str(r, "containerInfo", "ContainerInfo", "title") ?? "(album)";
     var artist = NugsShape.Str(r, "artistName", "ArtistName") ?? "";
+    var artistId = NugsShape.Str(r, "artistID", "ArtistID", "artistId");
     var venue = NugsShape.Str(r, "venue");
     var date = NugsShape.Str(r, "performanceDateFormatted", "performanceDate");
     var totalRT = NugsShape.Str(r, "hhmmssTotalRunningTime");
@@ -74,7 +75,18 @@ else
         }
         <div class="album-header-text">
             <h2>@title</h2>
-            <h3 class="dim">@artist</h3>
+            @if (!string.IsNullOrEmpty(artistId))
+            {
+                <h3 class="dim">
+                    <button class="artist-link" type="button"
+                            title="View all @artist recordings"
+                            @onclick="() => OnOpenArtist.InvokeAsync(artistId!)">@artist</button>
+                </h3>
+            }
+            else
+            {
+                <h3 class="dim">@artist</h3>
+            }
 
             @if (!string.IsNullOrEmpty(venue) || !string.IsNullOrEmpty(date) || !string.IsNullOrEmpty(totalRT))
             {
@@ -161,6 +173,7 @@ else
     [Parameter] public EventCallback<PlayRequest> OnPlay { get; set; }
     [Parameter] public EventCallback<IReadOnlyList<NowPlaying>> OnPlayNext { get; set; }
     [Parameter] public EventCallback<IReadOnlyList<NowPlaying>> OnEnqueue { get; set; }
+    [Parameter] public EventCallback<string> OnOpenArtist { get; set; }
 
     private static readonly System.Text.Json.JsonSerializerOptions _pretty
         = new() { WriteIndented = true };
