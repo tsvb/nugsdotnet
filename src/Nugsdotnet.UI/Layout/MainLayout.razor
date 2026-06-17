@@ -59,9 +59,11 @@ else
 
         <footer class="player">
             <Transport />
-            @* Hidden — the custom Transport above is the visible/accessible control surface. *@
-            <audio @ref="_audio" class="audio" aria-hidden="true"
-                   @onended="Player.HandleEnded"></audio>
+            @* Hidden — the custom Transport above is the visible/accessible control surface.
+               Two elements ping-pong for gapless playback; identity is owned by the JS
+               state machine (audio-interop.js), the class is only for the CSS hide rule. *@
+            <audio @ref="_audioA" class="audio" aria-hidden="true"></audio>
+            <audio @ref="_audioB" class="audio" aria-hidden="true"></audio>
         </footer>
 
         @if (_toast is not null)
@@ -75,7 +77,9 @@ else
     private SessionInfo? _session;
     private string _searchInputValue = "";
     private ElementReference _searchInput;
-    private ElementReference _audio;
+    private ElementReference _audioA;
+    private ElementReference _audioB;
+    private string? _preloadedTrackId;
     private DotNetObjectReference<MainLayout>? _selfRef;
     private bool _keysBound;
     private string? _toast;
@@ -96,8 +100,8 @@ else
         if (!_keysBound && _session is { LoggedIn: true })
         {
             _selfRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("audioInterop.init", _audioA, _audioB, _selfRef);
             await JS.InvokeVoidAsync("audioInterop.bindGlobalKeys", _selfRef);
-            await JS.InvokeVoidAsync("audioInterop.bindStats", _selfRef);
             await Dashboard.RestoreAsync(JS);
             _keysBound = true;
         }
@@ -121,6 +125,16 @@ else
     public Task OnAudioStats(PlaybackStatus status)
     {
         Player.SetPlayback(status);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>The active &lt;audio&gt; element finished — advance the queue.
+    /// (The Blazor @onended binding was replaced by a JS listener so it follows
+    /// whichever element is currently audible.)</summary>
+    [JSInvokable]
+    public Task OnTrackEnded()
+    {
+        Player.HandleEnded();
         return Task.CompletedTask;
     }
 
@@ -178,35 +192,54 @@ else
     }
 
     /// <summary>
-    /// PlayerService raised TrackChangeRequested — wire up the audio element.
-    /// Sync handler that schedules the async work; async-void would silently
-    /// swallow exceptions.
+    /// PlayerService raised a track change. Do the active-element op for the
+    /// kind, then re-sync preload — in that order, so the swap settles before we
+    /// re-point the (now) idle element (see spec §5). Sync handler that schedules
+    /// the async work; async-void would silently swallow exceptions.
     /// </summary>
-    private void OnTrackChangeRequested(TrackChangeKind kind)
-    {
-        if (kind == TrackChangeKind.PreloadOnly) return;  // preload wired up in a later task
-        _ = StartPlaybackAsync();
-    }
+    private void OnTrackChangeRequested(TrackChangeKind kind) => _ = HandleTrackChangeAsync(kind);
 
-    private async Task StartPlaybackAsync()
+    private async Task HandleTrackChangeAsync(TrackChangeKind kind)
     {
         try
         {
-            if (Player.Current is null)
+            switch (kind)
             {
-                // Queue emptied / cleared — stop the hidden audio element.
-                await JS.InvokeVoidAsync("audioInterop.stop");
-                return;
+                case TrackChangeKind.Fresh:
+                    if (Player.Current is null)
+                        await JS.InvokeVoidAsync("audioInterop.stop");
+                    else
+                        await JS.InvokeVoidAsync("audioInterop.playTrack", MediaUrls.PlayUrl(Player.Current.TrackId));
+                    break;
+
+                case TrackChangeKind.Advance:
+                    var swapped = await JS.InvokeAsync<bool>("audioInterop.advanceToPreloaded");
+                    if (!swapped && Player.Current is not null)
+                        await JS.InvokeVoidAsync("audioInterop.playTrack", MediaUrls.PlayUrl(Player.Current.TrackId));
+                    _preloadedTrackId = null;   // the swap consumed the preload
+                    break;
+
+                case TrackChangeKind.PreloadOnly:
+                    break;                      // no active-element op
             }
-            await JS.InvokeVoidAsync(
-                "audioInterop.setSrcAndPlay",
-                _audio,
-                MediaUrls.PlayUrl(Player.Current.TrackId));
+            await SyncPreloadAsync();
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"playback failed: {ex.Message}");
         }
+    }
+
+    /// <summary>Point the idle element at the current NextTrackId, but only when
+    /// it differs from what's already preloaded (preloadNext is idempotent).</summary>
+    private async Task SyncPreloadAsync()
+    {
+        var next = Player.NextTrackId;
+        if (next == _preloadedTrackId) return;
+        _preloadedTrackId = next;
+        await JS.InvokeVoidAsync(
+            "audioInterop.preloadNext",
+            next is null ? null : MediaUrls.PlayUrl(next));
     }
 
     private async Task HandleLoggedIn()
@@ -238,7 +271,7 @@ else
         Player.TrackChangeRequested -= OnTrackChangeRequested;
         Player.QueueChanged -= OnQueueChanged;
         Dashboard.StateChanged -= OnStateChanged;
-        try { await JS.InvokeVoidAsync("audioInterop.unbindStats"); } catch { /* circuit gone */ }
+        try { await JS.InvokeVoidAsync("audioInterop.dispose"); } catch { /* circuit gone */ }
         _selfRef?.Dispose();
     }
 }

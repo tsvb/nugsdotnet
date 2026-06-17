@@ -1,21 +1,151 @@
-// JS interop for the <audio> element + window-level keyboard shortcuts.
-// Blazor's @onkeydown only fires when the bound element has focus, which
-// makes global shortcuts awkward — we attach a window listener here instead
-// and call back into Blazor via DotNetObjectReference.
+// JS interop for the dual <audio> elements (gapless playback) + window-level
+// keyboard shortcuts. Two elements ping-pong: one is active (audible), the
+// other idle (preloading the next track). The active element's identity lives
+// here in _els/_active — never inferred from the DOM (both share class
+// "audio", which is used only for the CSS hide rule, never for resolution).
 window.audioInterop = {
-    setSrcAndPlay: function (el, url) {
+    _els: null,          // [elA, elB]
+    _active: 0,          // index of the audible element
+    _dotnetRef: null,
+    _rebufferCount: 0,
+    _statsEl: null,
+    _statsListeners: null,
+    _onEnded: null,
+    _onError: null,
+
+    _activeEl: function () { return this._els ? this._els[this._active] : null; },
+    _idleEl: function () { return this._els ? this._els[1 - this._active] : null; },
+
+    // ---- lifecycle -------------------------------------------------------
+    init: function (elA, elB, dotnetRef) {
+        if (this._els) return;                 // idempotent across reconnects
+        this._els = [elA, elB];
+        this._active = 0;
+        this._dotnetRef = dotnetRef;
+        this._rebufferCount = 0;
+
+        const self = this;
+        this._onEnded = function (e) {
+            if (e.target === self._activeEl() && self._dotnetRef) {
+                self._dotnetRef.invokeMethodAsync('OnTrackEnded').catch(function () { });
+            }
+        };
+        this._onError = function (e) {
+            if (e.target === self._activeEl()) {
+                if (self._dotnetRef) self._dotnetRef.invokeMethodAsync('OnAudioError').catch(function () { });
+            } else {
+                // Idle/preload element failed (e.g. the next track is HLS → 415,
+                // or no stream → 404). Swallow it; the next advance falls back
+                // to a cold load that surfaces the error on the active element.
+                e.target._preloadFailed = true;
+            }
+        };
+        for (const el of this._els) {
+            el.addEventListener('ended', this._onEnded);
+            el.addEventListener('error', this._onError);
+        }
+        this._bindStats(this._activeEl());
+    },
+
+    dispose: function () {
+        if (this._els && this._onEnded) {
+            for (const el of this._els) {
+                el.removeEventListener('ended', this._onEnded);
+                el.removeEventListener('error', this._onError);
+            }
+        }
+        this._unbindStats();
+        this._onEnded = this._onError = null;
+        this._dotnetRef = null;
+        this._els = null;
+    },
+
+    // ---- playback control (ACTIVE element unless noted) ------------------
+    playTrack: function (url) {
+        const el = this._activeEl();
         if (!el) return;
-        this._rebufferCount = 0;   // new track — reset the dashboard rebuffer counter
+        this._rebufferCount = 0;               // new track — reset rebuffer counter
+        el._preloadFailed = false;
         el.src = url;
         const p = el.play();
-        if (p && typeof p.catch === 'function') {
-            p.catch(err => console.warn('play() rejected:', err));
-        }
+        if (p && typeof p.catch === 'function') p.catch(err => console.warn('play() rejected:', err));
+        this._bindStats(el);
     },
-    // Play/pause, seek and volume all locate the element themselves so any
-    // component (transport, keyboard handler) can drive them with no ref.
+
+    // Point the IDLE element at the next track so it buffers ahead. Clears it
+    // when url is null. Targets _idleEl() by index, so it can never disturb the
+    // audible element.
+    preloadNext: function (url) {
+        const idle = this._idleEl();
+        if (!idle) return;
+        if (!url) {
+            idle.removeAttribute('src');
+            idle._preloadFailed = false;
+            try { idle.load(); } catch (e) { }
+            return;
+        }
+        idle._preloadFailed = false;
+        idle.preload = 'auto';
+        idle.src = url;
+        try { idle.load(); } catch (e) { }
+        // Nudge Chromium/WebView2 to actually buffer (preload=auto can otherwise
+        // sit at metadata until currentTime is touched).
+        const nudge = function () {
+            try { idle.currentTime = 0; } catch (e) { }
+            idle.removeEventListener('loadedmetadata', nudge);
+        };
+        idle.addEventListener('loadedmetadata', nudge);
+    },
+
+    // Swap the preloaded idle element to active and play it. Returns false if
+    // the preload was not ready / play() failed, so .NET can cold-load instead.
+    advanceToPreloaded: async function () {
+        const incoming = this._idleEl();
+        const outgoing = this._activeEl();
+        if (!incoming || !incoming.src || incoming._preloadFailed) return false;
+        if (!this._isReady(incoming)) return false;
+
+        // Flip FIRST so clearing the outgoing element's src (which can emit an
+        // 'error') is treated as an idle-element error and swallowed.
+        this._active = 1 - this._active;
+        this._rebufferCount = 0;
+        if (outgoing) {
+            try { outgoing.pause(); } catch (e) { }
+            outgoing.removeAttribute('src');
+            try { outgoing.load(); } catch (e) { }
+        }
+
+        let stalled = false;
+        const onWaiting = function () { stalled = true; };
+        incoming.addEventListener('waiting', onWaiting);
+        try {
+            const p = incoming.play();
+            if (p && typeof p.then === 'function') await p;
+        } catch (e) {
+            incoming.removeEventListener('waiting', onWaiting);
+            return false;   // play() rejected — .NET cold-loads on the new active element
+        }
+        this._bindStats(incoming);           // telemetry follows the audible element
+        await new Promise(r => setTimeout(r, 60));   // let an immediate stall surface
+        incoming.removeEventListener('waiting', onWaiting);
+        return !stalled;
+    },
+
+    // Ready = buffered from the start, enough to play through the hop.
+    _isReady: function (el) {
+        if (!el || el.readyState < 3) return false;        // < HAVE_FUTURE_DATA
+        try {
+            const b = el.buffered;
+            if (!b || b.length === 0) return false;
+            if (b.start(0) > 0.05) return false;            // must cover the start
+            const have = b.end(0);
+            const dur = isFinite(el.duration) ? el.duration : have;
+            return have >= Math.min(2, dur);                // ~2s, or whole short track
+        } catch (e) { return false; }
+    },
+
     toggle: function () {
-        const el = document.querySelector('audio.audio');
+        const el = this._activeEl();
         if (!el) return;
         if (el.paused) {
             const p = el.play();
@@ -25,24 +155,25 @@ window.audioInterop = {
         }
     },
     stop: function () {
-        const el = document.querySelector('audio.audio');
-        if (!el) return;
-        el.pause();
-        el.removeAttribute('src');
-        try { el.load(); } catch (e) { }
+        if (!this._els) return;
+        for (const el of this._els) {
+            el.pause();
+            el.removeAttribute('src');
+            el._preloadFailed = false;
+            try { el.load(); } catch (e) { }
+        }
     },
     setCurrentTime: function (t) {
-        const el = document.querySelector('audio.audio');
+        const el = this._activeEl();
         if (el && isFinite(t)) { try { el.currentTime = Math.max(0, t); } catch (e) { } }
     },
     setVolume: function (v) {
-        const el = document.querySelector('audio.audio');
-        if (el) el.volume = Math.min(1, Math.max(0, v));
+        if (!this._els) return;
+        const vol = Math.min(1, Math.max(0, v));
+        for (const el of this._els) el.volume = vol;   // both, so volume survives a swap
     },
-    // Seek from a click on the dashboard's now-playing meter (.progress-bar-track),
-    // mapping the click x-position to a fraction of the track.
     seekProgressClick: function (clientX) {
-        const el = document.querySelector('audio.audio');
+        const el = this._activeEl();
         const bar = document.querySelector('.progress-bar-track');
         if (!el || !bar || !isFinite(el.duration) || el.duration <= 0) return;
         const r = bar.getBoundingClientRect();
@@ -50,12 +181,12 @@ window.audioInterop = {
         const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
         try { el.currentTime = frac * el.duration; } catch (e) { }
     },
-    isPaused: function (el) {
-        const a = el || document.querySelector('audio.audio');
-        return a ? a.paused : true;
+    isPaused: function () {
+        const el = this._activeEl();
+        return el ? el.paused : true;
     },
+
     bindGlobalKeys: function (dotnetRef) {
-        // Idempotent: removing any prior listener if hot-reloaded.
         if (this._handler) {
             document.removeEventListener('keydown', this._handler);
         }
@@ -67,8 +198,6 @@ window.audioInterop = {
                 tag === 'TEXTAREA' ||
                 t.isContentEditable === true
             );
-            // Elements where Space/Enter natively activate or scroll — never
-            // hijack Space from them (WCAG 2.1.1 / 2.1.4).
             const activatable = t && (
                 tag === 'BUTTON' || tag === 'SUMMARY' || tag === 'A' || tag === 'SELECT' ||
                 (t.getAttribute && (t.getAttribute('role') === 'button' || t.getAttribute('role') === 'slider'))
@@ -103,19 +232,12 @@ window.audioInterop = {
         try { localStorage.setItem(key, value); } catch (e) { /* private mode */ }
     },
 
-    // --- dashboard audio telemetry ---------------------------------------
-    // Pushes a stats snapshot to .NET on throttled timeupdate/progress and on
-    // buffering events. Finds the <audio> element itself so the caller needs no
-    // ElementReference. Idempotent; returns false if the element isn't present.
-    bindStats: function (dotnetRef) {
-        const el = document.querySelector('audio.audio');
-        if (!el) return false;
-        if (this._statsBound) return true;
-
+    // --- dashboard audio telemetry (binds to the ACTIVE element) ----------
+    _bindStats: function (el) {
+        if (!el || !this._dotnetRef) return;
+        this._unbindStats();
         const self = this;
-        this._statsRef = dotnetRef;
         this._statsEl = el;
-        if (typeof this._rebufferCount !== 'number') this._rebufferCount = 0;
         let lastFire = 0;
 
         function snapshot() {
@@ -140,8 +262,8 @@ window.audioInterop = {
             };
         }
         function fire() {
-            if (!self._statsRef) return;
-            self._statsRef.invokeMethodAsync('OnAudioStats', snapshot()).catch(function () { });
+            if (!self._dotnetRef) return;
+            self._dotnetRef.invokeMethodAsync('OnAudioStats', snapshot()).catch(function () { });
         }
         function throttled() {
             const now = Date.now();
@@ -150,11 +272,6 @@ window.audioInterop = {
             fire();
         }
         function rebuffer() { self._rebufferCount++; fire(); }
-        function onError() {
-            // 415 (HLS) / 404 (no stream) / network/decode failure: tell .NET so
-            // the UI can surface it and skip, instead of silently stalling.
-            if (self._statsRef) self._statsRef.invokeMethodAsync('OnAudioError').catch(function () { });
-        }
 
         this._statsListeners = {
             timeupdate: throttled,
@@ -165,24 +282,20 @@ window.audioInterop = {
             pause: fire,
             volumechange: fire,
             ratechange: fire,
-            loadedmetadata: fire,
-            error: onError
+            loadedmetadata: fire
         };
         for (const evt in this._statsListeners) {
             el.addEventListener(evt, this._statsListeners[evt]);
         }
-        this._statsBound = true;
-        fire();   // initial snapshot
-        return true;
+        fire();   // immediate snapshot so the transport/dashboard re-sync at once
     },
-    unbindStats: function () {
-        if (!this._statsBound || !this._statsEl) return;
-        for (const evt in this._statsListeners) {
-            this._statsEl.removeEventListener(evt, this._statsListeners[evt]);
+    _unbindStats: function () {
+        if (this._statsEl && this._statsListeners) {
+            for (const evt in this._statsListeners) {
+                this._statsEl.removeEventListener(evt, this._statsListeners[evt]);
+            }
         }
-        this._statsRef = null;
         this._statsEl = null;
         this._statsListeners = null;
-        this._statsBound = false;
     }
 };
