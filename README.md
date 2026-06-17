@@ -7,7 +7,7 @@ no content is downloaded, redistributed, or stripped of DRM.
 
 ## Stack
 
-- **Server:** ASP.NET Core 9 minimal API (`Nugsdotnet.Server`).
+- **Server:** ASP.NET Core 10 minimal API (`Nugsdotnet.Server`).
 - **Client:** Blazor WebAssembly (`Nugsdotnet.Client`), served by the same host.
 - **Shared:** DTOs in `Nugsdotnet.Shared`.
 
@@ -39,7 +39,7 @@ Check those when an endpoint or shape stops working.
 
 ## Run it
 
-You need .NET 9 SDK. Then:
+You need the .NET 10 SDK. Then:
 
 ```powershell
 # add your nugs credentials with user-secrets (preferred)
