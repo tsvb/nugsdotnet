@@ -126,7 +126,7 @@ window.audioInterop = {
             return false;   // play() rejected — .NET cold-loads on the new active element
         }
         this._bindStats(incoming);           // telemetry follows the audible element
-        await new Promise(r => setTimeout(r, 60));   // let an immediate stall surface
+        await new Promise(r => setTimeout(r, 250));  // let an immediate stall surface (spec §6)
         incoming.removeEventListener('waiting', onWaiting);
         return !stalled;
     },

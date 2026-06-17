@@ -9,13 +9,13 @@
 @implements IAsyncDisposable
 
 @*
-    Persistent app shell. Lives across all routes — owns the <audio> element,
-    JS interop, search input, and login gate. The routed page renders into
-    @Body in the middle.
+    Persistent app shell. Lives across all routes — owns the two <audio>
+    elements (active + idle preload) for gapless playback, JS interop, search
+    input, and login gate. The routed page renders into @Body in the middle.
 
-    PlayerService holds queue state in DI so audio survives navigation.
-    When PlayerService raises TrackChangeRequested, we call setSrcAndPlay
-    on the audio element here.
+    PlayerService holds queue state in DI so audio survives navigation. When it
+    raises TrackChangeRequested, we drive the JS audio state machine here
+    (playTrack / advanceToPreloaded / preloadNext in audio-interop.js).
 *@
 
 @if (_session is null)

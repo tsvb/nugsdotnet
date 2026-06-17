@@ -6,11 +6,12 @@ namespace Nugsdotnet.Core;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers the nugs.net client stack: NugsClient (typed HttpClient with a
-    /// 5-minute timeout — FLAC files can be hundreds of MB), TokenStore
-    /// (singleton at the given path), and StreamInspector (singleton cache).
-    /// Called by both the web Server and the MAUI loopback host so the two
-    /// heads share one registration story.
+    /// Registers the nugs.net client stack: NugsClient (typed HttpClient with no
+    /// overall timeout — audio bodies stream for whole tracks, so FetchAudioAsync
+    /// bounds only connect+headers per request), TokenStore (singleton at the
+    /// given path), and StreamInspector (singleton cache). Called by both the web
+    /// Server and the MAUI loopback host so the two heads share one registration
+    /// story.
     /// </summary>
     public static IServiceCollection AddNugsCore(
         this IServiceCollection services, string tokenPath)
