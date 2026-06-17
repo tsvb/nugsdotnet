@@ -1,0 +1,100 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore MAUI workload
+        run: dotnet workload restore src/Nugsdotnet.App/Nugsdotnet.App.csproj
+
+      - name: Publish (self-contained, win-x64)
+        run: >
+          dotnet publish src/Nugsdotnet.App/Nugsdotnet.App.csproj -c Release
+          -f net10.0-windows10.0.19041.0 -p:RuntimeIdentifier=win-x64
+          -p:SelfContained=true -p:WindowsAppSDKSelfContained=true
+          -p:WindowsPackageType=None
+          -p:ApplicationDisplayVersion=${{ steps.ver.outputs.version }}
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: >
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          /DMyAppVersion=${{ steps.ver.outputs.version }}
+          "/DPublishDir=${{ github.workspace }}\src\Nugsdotnet.App\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
+          packaging\installer.iss
+
+      - name: Sign installer (placeholder hook — signing deferred)
+        shell: pwsh
+        run: Write-Host "Signing deferred. See docs/RELEASING.md (Azure Trusted Signing) to enable."
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/Output/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe
+          generate_release_notes: true
+
+      - name: Install Komac
+        shell: pwsh
+        run: |
+          $url = "https://github.com/russellbanks/Komac/releases/latest/download/komac-x86_64-pc-windows-msvc.exe"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\komac.exe"
+
+      - name: Generate winget manifests (always)
+        shell: pwsh
+        run: |
+          $url = "https://github.com/tsvb/nugsdotnet/releases/download/${{ github.ref_name }}/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe"
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\winget-out" | Out-Null
+          & "$env:RUNNER_TEMP\komac.exe" update tsvb.nugsdotnet `
+            --version ${{ steps.ver.outputs.version }} `
+            --urls $url `
+            --dry-run --output "$env:RUNNER_TEMP\winget-out"
+          Compress-Archive -Path "$env:RUNNER_TEMP\winget-out\*" -DestinationPath "$env:RUNNER_TEMP\nugsdotnet-${{ steps.ver.outputs.version }}-winget-manifests.zip"
+
+      - name: Attach manifests to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload ${{ github.ref_name }} "$env:RUNNER_TEMP\nugsdotnet-${{ steps.ver.outputs.version }}-winget-manifests.zip"
+
+      - name: Check for winget submission token
+        id: tok
+        shell: pwsh
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:WINGET_TOKEN)) { "present=false" >> $env:GITHUB_OUTPUT }
+          else { "present=true" >> $env:GITHUB_OUTPUT }
+
+      - name: Submit to winget-pkgs (only when token present)
+        if: steps.tok.outputs.present == 'true'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          $url = "https://github.com/tsvb/nugsdotnet/releases/download/${{ github.ref_name }}/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe"
+          & "$env:RUNNER_TEMP\komac.exe" update tsvb.nugsdotnet `
+            --version ${{ steps.ver.outputs.version }} `
+            --urls $url `
+            --submit
