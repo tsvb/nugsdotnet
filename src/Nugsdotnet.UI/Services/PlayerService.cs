@@ -210,6 +210,22 @@ public sealed class PlayerService
         StartAt(_index + 1, TrackChangeKind.Advance);
     }
 
+    /// <summary>
+    /// The JS layer already swapped to the preloaded next track in the same
+    /// `ended` tick (the gapless hot-path), so the audio has advanced without a
+    /// round-trip. Sync the cursor to match WITHOUT re-triggering an audio swap:
+    /// raise <see cref="TrackChangeKind.PreloadOnly"/> so the layout only
+    /// re-points the idle element at the new next track, never a second swap.
+    /// </summary>
+    public void AdvanceFromPreload()
+    {
+        if (!HasNext) return;  // JS only hot-swaps when a preloaded next exists
+        _index++;
+        _ended = false;
+        StateChanged?.Invoke();
+        TrackChangeRequested?.Invoke(TrackChangeKind.PreloadOnly);
+    }
+
     public void Previous()
     {
         if (!HasPrevious) return;

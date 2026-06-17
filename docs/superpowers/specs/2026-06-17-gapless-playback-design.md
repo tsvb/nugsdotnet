@@ -185,3 +185,14 @@ The review's 11 rejected findings (recorded for due diligence):
 ---
 
 *This design preserves the locked architecture; §§4–8 are realization detail surfaced by adversarial review. Implementation should land the JS two-element machine, the `@onended` removal, and `OnTrackEnded` atomically (removing `@onended` without the others breaks advancement).*
+
+## 13. Addendum (2026-06-17) — JS hot-path for natural-end advance
+
+Native verification confirmed gapless preload + autoplay work, but left a *tiny* residual gap on auto-advance: the JS→.NET→JS round-trip that decision #2 ("advancement in .NET") accepted. To remove it, the **natural-end advance now happens in JS**, with .NET following — a contained revision of decision #2. **Manual Next/Previous/JumpTo and all queue edits stay fully .NET-driven** (unchanged).
+
+- **JS `_onEnded`** (active element only): calls a shared synchronous **`_doSwap()`** (the swap core extracted from `advanceToPreloaded`: readiness gate → flip active index → pause/clear outgoing → rebind telemetry → `play()` the preloaded element). On success it fires-and-forgets the play promise and calls **`OnAdvancedViaPreload`**; if `_doSwap` returns false (preload not ready / queue end) it falls back to the existing **`OnTrackEnded`** cold path.
+- **`PlayerService.AdvanceFromPreload()`**: advances the cursor (`_index++`, clears `_ended`) and raises `StateChanged` + **`TrackChangeRequested(PreloadOnly)`** — never `Advance`, since the audio already swapped in JS. The existing `PreloadOnly` handler then re-points the idle element at the new next track (the `_preloadedTrackId` diff naturally targets N+2).
+- **`MainLayout.OnAdvancedViaPreload()`** `[JSInvokable]` → `Player.AdvanceFromPreload()`.
+- **`advanceToPreloaded`** (still used by manual Next / cold-load fallback) is refactored to call `_doSwap()` then `await` the play promise + run the stall guard. Both paths share `_doSwap` (DRY).
+
+Result: the audio path on natural end has zero interop hops → effectively sample-seamless for FLAC. Unit-tested via `AdvanceFromPreload` (advances + emits `PreloadOnly`; no-op at queue end); JS verified manually on the native head.

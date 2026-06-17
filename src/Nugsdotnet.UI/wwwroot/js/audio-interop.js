@@ -26,7 +26,16 @@ window.audioInterop = {
 
         const self = this;
         this._onEnded = function (e) {
-            if (e.target === self._activeEl() && self._dotnetRef) {
+            if (e.target !== self._activeEl()) return;   // a now-idle element's own 'ended' — ignore
+            // Gapless hot-path: swap to the preloaded element NOW, in this same
+            // 'ended' tick, with no JS→.NET→JS round-trip on the audio path. Then
+            // tell .NET to sync the queue cursor. If preload wasn't ready (or the
+            // queue ended), fall back to the .NET-driven advance.
+            const sw = self._doSwap();
+            if (sw) {
+                if (typeof sw.catch === 'function') sw.catch(function (err) { console.warn('advance play() rejected:', err); });
+                if (self._dotnetRef) self._dotnetRef.invokeMethodAsync('OnAdvancedViaPreload').catch(function () { });
+            } else if (self._dotnetRef) {
                 self._dotnetRef.invokeMethodAsync('OnTrackEnded').catch(function () { });
             }
         };
@@ -97,9 +106,11 @@ window.audioInterop = {
         idle.addEventListener('loadedmetadata', nudge);
     },
 
-    // Swap the preloaded idle element to active and play it. Returns false if
-    // the preload was not ready / play() failed, so .NET can cold-load instead.
-    advanceToPreloaded: async function () {
+    // Core swap: the idle (preloaded) element becomes active and starts playing,
+    // immediately and synchronously. Returns the play() promise on success, or
+    // false if the preload wasn't ready. Shared by the JS hot-path (natural end,
+    // see _onEnded) and the .NET-driven path (manual Next / cold-load fallback).
+    _doSwap: function () {
         const incoming = this._idleEl();
         const outgoing = this._activeEl();
         if (!incoming || !incoming.src || incoming._preloadFailed) return false;
@@ -114,20 +125,26 @@ window.audioInterop = {
             outgoing.removeAttribute('src');
             try { outgoing.load(); } catch (e) { }
         }
+        this._bindStats(incoming);           // telemetry follows the audible element
+        const p = incoming.play();
+        return (p && typeof p.then === 'function') ? p : Promise.resolve();
+    },
 
+    // .NET-driven advance (manual Next / cold-load fallback). Awaits play() so a
+    // rejection reports false, and watches briefly for an immediate stall.
+    // Returns false if the preload wasn't ready / play() failed, so .NET can
+    // cold-load instead. (Natural-end advance does NOT come through here — it
+    // takes the synchronous _doSwap hot-path in _onEnded.)
+    advanceToPreloaded: async function () {
+        const sw = this._doSwap();
+        if (!sw) return false;
+        try { await sw; } catch (e) { return false; }
+        const el = this._activeEl();
         let stalled = false;
         const onWaiting = function () { stalled = true; };
-        incoming.addEventListener('waiting', onWaiting);
-        try {
-            const p = incoming.play();
-            if (p && typeof p.then === 'function') await p;
-        } catch (e) {
-            incoming.removeEventListener('waiting', onWaiting);
-            return false;   // play() rejected — .NET cold-loads on the new active element
-        }
-        this._bindStats(incoming);           // telemetry follows the audible element
+        el.addEventListener('waiting', onWaiting);
         await new Promise(r => setTimeout(r, 250));  // let an immediate stall surface (spec §6)
-        incoming.removeEventListener('waiting', onWaiting);
+        el.removeEventListener('waiting', onWaiting);
         return !stalled;
     },
 

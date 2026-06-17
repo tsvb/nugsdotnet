@@ -128,13 +128,25 @@ else
         return Task.CompletedTask;
     }
 
-    /// <summary>The active &lt;audio&gt; element finished — advance the queue.
-    /// (The Blazor @onended binding was replaced by a JS listener so it follows
-    /// whichever element is currently audible.)</summary>
+    /// <summary>The active &lt;audio&gt; element finished and the preload was NOT
+    /// ready (or the queue ended) — advance the queue the normal way (cold-load
+    /// the next track, or stop). The seamless case goes through
+    /// <see cref="OnAdvancedViaPreload"/> instead.</summary>
     [JSInvokable]
     public Task OnTrackEnded()
     {
         Player.HandleEnded();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>JS already swapped to the preloaded next track in the same
+    /// `ended` tick (the gapless hot-path) — no .NET round-trip touched the audio.
+    /// Sync the queue cursor without re-triggering a swap; the resulting
+    /// PreloadOnly change re-points the idle element at the new next track.</summary>
+    [JSInvokable]
+    public Task OnAdvancedViaPreload()
+    {
+        Player.AdvanceFromPreload();
         return Task.CompletedTask;
     }
 

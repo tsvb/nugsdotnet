@@ -141,4 +141,32 @@ public class PlayerServiceTests
         Assert.Null(p.Current);
         Assert.Null(p.NextTrackId);
     }
+
+    [Fact]
+    public void AdvanceFromPreload_advances_cursor_and_emits_PreloadOnly()
+    {
+        // The JS hot-path already swapped the audio to the preloaded next track;
+        // .NET only syncs the cursor. It must NOT emit Advance (that would make
+        // the layout swap a second time) — it emits PreloadOnly so the layout
+        // just re-points the idle element at the new next track.
+        var p = Playing("a", "b", "c");     // on a, b preloaded
+        var kinds = new List<TrackChangeKind>();
+        p.TrackChangeRequested += k => kinds.Add(k);
+        p.AdvanceFromPreload();
+        Assert.Equal(new[] { TrackChangeKind.PreloadOnly }, kinds);
+        Assert.Equal("b", p.Current!.TrackId);
+        Assert.Equal("c", p.NextTrackId);
+    }
+
+    [Fact]
+    public void AdvanceFromPreload_at_last_track_is_noop()
+    {
+        var p = Playing("a", "b");
+        p.Next();                            // on b (last) — nothing preloaded
+        var kinds = new List<TrackChangeKind>();
+        p.TrackChangeRequested += k => kinds.Add(k);
+        p.AdvanceFromPreload();              // no next — must not advance or emit
+        Assert.Empty(kinds);
+        Assert.Equal("b", p.Current!.TrackId);
+    }
 }
