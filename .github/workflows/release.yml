@@ -60,22 +60,24 @@ jobs:
           files: packaging/Output/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe
           generate_release_notes: true
 
-      - name: Install Komac
+      - name: Generate winget manifests from template (always)
         shell: pwsh
         run: |
-          $url = "https://github.com/russellbanks/Komac/releases/latest/download/komac-x86_64-pc-windows-msvc.exe"
-          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\komac.exe"
-
-      - name: Generate winget manifests (always)
-        shell: pwsh
-        run: |
-          $url = "https://github.com/tsvb/nugsdotnet/releases/download/${{ github.ref_name }}/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe"
-          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\winget-out" | Out-Null
-          & "$env:RUNNER_TEMP\komac.exe" update tsvb.nugsdotnet `
-            --version ${{ steps.ver.outputs.version }} `
-            --urls $url `
-            --dry-run --output "$env:RUNNER_TEMP\winget-out"
-          Compress-Archive -Path "$env:RUNNER_TEMP\winget-out\*" -DestinationPath "$env:RUNNER_TEMP\nugsdotnet-${{ steps.ver.outputs.version }}-winget-manifests.zip"
+          $ver = "${{ steps.ver.outputs.version }}"
+          $installer = "packaging/Output/nugsdotnet-$ver-x64-setup.exe"
+          $sha = (Get-FileHash $installer -Algorithm SHA256).Hash
+          $url = "https://github.com/tsvb/nugsdotnet/releases/download/${{ github.ref_name }}/nugsdotnet-$ver-x64-setup.exe"
+          $outDir = "$env:RUNNER_TEMP\winget-out"
+          New-Item -ItemType Directory -Force $outDir | Out-Null
+          # Fill the checked-in template with this release's version, URL, and SHA256.
+          Get-ChildItem packaging/winget/*.yaml | ForEach-Object {
+            $text = Get-Content $_.FullName -Raw
+            $text = $text -replace 'PackageVersion: .*', "PackageVersion: $ver"
+            $text = $text -replace 'InstallerUrl: .*', "InstallerUrl: $url"
+            $text = $text -replace 'InstallerSha256: .*', "InstallerSha256: $sha"
+            Set-Content -Path (Join-Path $outDir $_.Name) -Value $text -NoNewline
+          }
+          Compress-Archive -Path "$outDir\*" -DestinationPath "$env:RUNNER_TEMP\nugsdotnet-$ver-winget-manifests.zip"
 
       - name: Attach manifests to release
         shell: pwsh
@@ -98,8 +100,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
         run: |
+          # Pinned Komac — its release asset name embeds the version, so there is
+          # no stable "latest" filename. Bump $kv to update Komac.
+          $kv = "2.16.0"
+          $komacUrl = "https://github.com/russellbanks/Komac/releases/download/v$kv/komac-$kv-x86_64-pc-windows-msvc.exe"
+          Invoke-WebRequest -Uri $komacUrl -OutFile "$env:RUNNER_TEMP\komac.exe"
           $url = "https://github.com/tsvb/nugsdotnet/releases/download/${{ github.ref_name }}/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe"
-          & "$env:RUNNER_TEMP\komac.exe" update tsvb.nugsdotnet `
+          # 'new' creates a first-time package. After tsvb.nugsdotnet is accepted
+          # into winget-pkgs, switch 'new' to 'update' for later releases.
+          & "$env:RUNNER_TEMP\komac.exe" new tsvb.nugsdotnet `
             --version ${{ steps.ver.outputs.version }} `
             --urls $url `
             --submit
