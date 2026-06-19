@@ -25,8 +25,10 @@ The workflow then:
 
 1. Publishes the self-contained app and builds `nugsdotnet-0.2.0-x64-setup.exe`.
 2. Creates the GitHub Release with the installer attached.
-3. Generates the winget manifest with Komac and attaches
-   `nugsdotnet-0.2.0-winget-manifests.zip` to the release.
+3. Generates the winget manifest from the checked-in template in
+   `packaging/winget/` — filling in the release URL and the installer's SHA256 —
+   and attaches `nugsdotnet-0.2.0-winget-manifests.zip` to the release. (Komac
+   is used only for the optional public submission below, not here.)
 
 The tag is the single source of truth for the version — it flows into the build
 (`ApplicationDisplayVersion`), the installer filename, and the manifest. No file
