@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
-# NOTE: InstallerUrl and InstallerSha256 are placeholders. The release pipeline
-# (Komac) overwrites them per release with the real GitHub Release asset URL and
-# its computed SHA256. The all-zero hash is format-valid so `winget validate`
-# passes on this template.
+# InstallerUrl and InstallerSha256 are set by the release workflow per release,
+# from the real GitHub Release asset URL and its computed SHA256 (see
+# .github/workflows/release.yml). The checked-in values are placeholders; the
+# all-zero hash keeps `winget validate` passing on this template.
 PackageIdentifier: tsvb.nugsdotnet
 PackageVersion: 0.2.0
 InstallerType: inno
