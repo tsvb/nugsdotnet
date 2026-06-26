@@ -34,37 +34,32 @@ The tag is the single source of truth for the version — it flows into the buil
 (`ApplicationDisplayVersion`), the installer filename, and the manifest. No file
 needs editing to bump the version.
 
-## Install locally (no public listing)
+## Install locally
 
-**While the repo is private,** the `winget install --manifest` path can't fetch
-the installer — its `InstallerUrl` returns 404 to unauthenticated downloads. So
-download the `…-x64-setup.exe` from the release (via `gh release download` or the
-browser, where you're signed in) and run it directly. The manifests still ship in
-the release for the public flip below.
-
-Once the repo (or its release assets) is public, the manifest install also works:
+Download the manifests asset from a release, unzip it, then:
 
 ```
-winget install --manifest .\nugsdotnet-0.2.0-winget-manifests
+winget install --manifest .\nugsdotnet-<version>-winget-manifests
 ```
 
-## Go public (optional)
+Or just download and run the `…-x64-setup.exe` directly. The repo is public, so
+the manifest's `InstallerUrl` is anonymously downloadable.
 
-To auto-open a PR to `microsoft/winget-pkgs` on each release:
+## Publish to the public winget catalog (optional)
 
-1. Fork `microsoft/winget-pkgs` to your account.
-2. Create a classic PAT with `public_repo` scope (access to your fork).
-3. Add it as the repo secret **`WINGET_TOKEN`** (Settings → Secrets and
-   variables → Actions).
+The repo is public, so the only thing left to make `winget install nugsdotnet`
+work from the **default** source is the auto-submit to `microsoft/winget-pkgs`:
 
-With the secret present, the workflow's final step submits the PR; without it,
-that step is skipped — so releases keep working privately until you opt in.
+1. Add a **`LICENSE`** file and replace `License: Proprietary` in
+   [`packaging/winget/tsvb.nugsdotnet.locale.en-US.yaml`](../packaging/winget/tsvb.nugsdotnet.locale.en-US.yaml)
+   with its SPDX id — `winget-pkgs` moderators expect a real license.
+2. Fork `microsoft/winget-pkgs` to your account.
+3. Create a classic PAT with `public_repo` scope and add it as the repo secret
+   **`WINGET_TOKEN`** (Settings → Secrets and variables → Actions).
 
-**Before going public,** replace `License: Proprietary` in
-[`packaging/winget/tsvb.nugsdotnet.locale.en-US.yaml`](../packaging/winget/tsvb.nugsdotnet.locale.en-US.yaml)
-with a real license (and add a `LICENSE` file to the repo) — `winget-pkgs`
-moderators expect one. Note that public submission lists an unofficial
-third-party nugs.net client, a different posture from "personal use only."
+With the secret present, the release workflow's final step opens the PR; without
+it, that step is skipped. Note this publicly lists an unofficial third-party
+nugs.net client — a different posture from "personal use only."
 
 ## Enable code signing (optional, removes SmartScreen warning)
 

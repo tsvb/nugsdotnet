@@ -95,8 +95,8 @@ The server binds `http://localhost:5273`. Open it, sign in (the "use credentials
 from appsettings/env" checkbox is on by default), search, click through to a
 show, hit ▶ on a track.
 
-Prefer env vars? Set `NUGS_EMAIL` / `NUGS_PASSWORD`, or fill them into
-`appsettings.json` (not gitignored — be careful).
+Prefer env vars? Set `NUGS_EMAIL` / `NUGS_PASSWORD` instead. **Don't** put real
+credentials in `appsettings.json` — it's tracked, and this repo is public.
 
 > **SSO accounts:** if you sign into nugs via Apple/Google, the password grant
 > won't work. You'll need to paste an `access_token` grabbed from the
