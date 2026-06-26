@@ -36,13 +36,17 @@ needs editing to bump the version.
 
 ## Install locally (no public listing)
 
-Download and unzip the manifests asset from the release, then:
+**While the repo is private,** the `winget install --manifest` path can't fetch
+the installer — its `InstallerUrl` returns 404 to unauthenticated downloads. So
+download the `…-x64-setup.exe` from the release (via `gh release download` or the
+browser, where you're signed in) and run it directly. The manifests still ship in
+the release for the public flip below.
+
+Once the repo (or its release assets) is public, the manifest install also works:
 
 ```
 winget install --manifest .\nugsdotnet-0.2.0-winget-manifests
 ```
-
-Or just run the `…-x64-setup.exe` directly.
 
 ## Go public (optional)
 
