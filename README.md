@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Windows-x64-9a8b6e?style=flat-square&labelColor=15120D&logo=windows&logoColor=efe4cf" alt="Windows x64">
   <img src="https://img.shields.io/badge/MAUI-Blazor%20Hybrid-9a8b6e?style=flat-square&labelColor=15120D" alt="MAUI Blazor Hybrid">
   <img src="https://img.shields.io/badge/install-winget-ffb22e?style=flat-square&labelColor=15120D" alt="winget">
-  <img src="https://img.shields.io/badge/use-personal%20only-ff7a1a?style=flat-square&labelColor=15120D" alt="personal use only">
+  <img src="https://img.shields.io/badge/license-MIT-ffb22e?style=flat-square&labelColor=15120D" alt="MIT license">
 </p>
 
 <p align="center"><em>A personal hi-fi front-end for <a href="https://nugs.net">nugs.net</a> live music — fast search, a real queue, keyboard-first. Two heads (web + native), one signal path, no DRM games.</em></p>

@@ -98,17 +98,13 @@ jobs:
         if: steps.tok.outputs.present == 'true'
         shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
         run: |
-          # Pinned Komac — its release asset name embeds the version, so there is
-          # no stable "latest" filename. Bump $kv to update Komac.
-          $kv = "2.16.0"
-          $komacUrl = "https://github.com/russellbanks/Komac/releases/download/v$kv/komac-$kv-x86_64-pc-windows-msvc.exe"
-          Invoke-WebRequest -Uri $komacUrl -OutFile "$env:RUNNER_TEMP\komac.exe"
-          $url = "https://github.com/tsvb/nugsdotnet/releases/download/${{ github.ref_name }}/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe"
-          # 'new' creates a first-time package. After tsvb.nugsdotnet is accepted
-          # into winget-pkgs, switch 'new' to 'update' for later releases.
-          & "$env:RUNNER_TEMP\komac.exe" new tsvb.nugsdotnet `
-            --version ${{ steps.ver.outputs.version }} `
-            --urls $url `
-            --submit
+          # Submit the COMPLETE manifests the previous step generated to
+          # $RUNNER_TEMP\winget-out (real version/URL/SHA + curated License,
+          # Description, Tags) — not a freshly auto-detected one. wingetcreate
+          # forks microsoft/winget-pkgs via the token and opens the PR.
+          # https://aka.ms/wingetcreate/latest is Microsoft's stable download alias.
+          $dir = "$env:RUNNER_TEMP\winget-out"
+          Invoke-WebRequest -Uri "https://aka.ms/wingetcreate/latest" -OutFile "$env:RUNNER_TEMP\wingetcreate.exe"
+          & "$env:RUNNER_TEMP\wingetcreate.exe" submit --token $env:WINGET_TOKEN $dir

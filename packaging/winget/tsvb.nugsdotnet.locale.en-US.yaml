@@ -6,7 +6,9 @@ Publisher: Tim Vanbenschoten
 PublisherUrl: https://github.com/tsvb
 PackageName: nugsdotnet
 PackageUrl: https://github.com/tsvb/nugsdotnet
-License: Proprietary
+License: MIT
+LicenseUrl: https://github.com/tsvb/nugsdotnet/blob/main/LICENSE
+Copyright: Copyright (c) 2026 Tim Vanbenschoten
 ShortDescription: A fast personal local web client for nugs.net.
 Description: >-
   A personal local web client for nugs.net with fast search, better queue and

@@ -47,19 +47,21 @@ the manifest's `InstallerUrl` is anonymously downloadable.
 
 ## Publish to the public winget catalog (optional)
 
-The repo is public, so the only thing left to make `winget install nugsdotnet`
-work from the **default** source is the auto-submit to `microsoft/winget-pkgs`:
+`winget install nugsdotnet` from the **default** source needs a one-time PR to
+`microsoft/winget-pkgs`. The repo is public and a `LICENSE` (MIT) is in place and
+reflected in the manifest, so all that's left is the token:
 
-1. Add a **`LICENSE`** file and replace `License: Proprietary` in
-   [`packaging/winget/tsvb.nugsdotnet.locale.en-US.yaml`](../packaging/winget/tsvb.nugsdotnet.locale.en-US.yaml)
-   with its SPDX id — `winget-pkgs` moderators expect a real license.
-2. Fork `microsoft/winget-pkgs` to your account.
-3. Create a classic PAT with `public_repo` scope and add it as the repo secret
-   **`WINGET_TOKEN`** (Settings → Secrets and variables → Actions).
+1. Create a **classic PAT** with `public_repo` scope.
+2. Add it as the repo secret **`WINGET_TOKEN`** (Settings → Secrets and variables
+   → Actions).
 
-With the secret present, the release workflow's final step opens the PR; without
-it, that step is skipped. Note this publicly lists an unofficial third-party
-nugs.net client — a different posture from "personal use only."
+With the secret present, the release workflow's final step downloads
+`wingetcreate` and submits the complete generated manifests — it forks
+`microsoft/winget-pkgs` for you and opens the PR. Without the secret, that step is
+skipped. The PR fires on the next release tag; to submit the **current** version,
+re-run the latest `release` workflow run after adding the secret.
+
+Note this publicly lists an unofficial third-party nugs.net client.
 
 ## Enable code signing (optional, removes SmartScreen warning)
 
