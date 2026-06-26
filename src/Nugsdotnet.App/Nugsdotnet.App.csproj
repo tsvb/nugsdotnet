@@ -32,8 +32,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0a0907" />
+		<!-- App Icon — single full-bleed SVG (the RECEIVER '74 tuning-dial mark).
+		     No ForegroundFile/Color: the art is opaque and full-bleed, so the
+		     resizetizer rasterizes it as-is. A separate adaptive foreground can
+		     be added in Phase 2 when Android/iOS heads land. -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" />
 
 		<!-- Splash Screen -->
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0a0907" BaseSize="128,128" />
