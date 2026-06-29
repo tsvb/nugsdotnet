@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Platform-agnostic core for the native Windows client. Plain net10.0 (NOT
+    -windows) on purpose: everything here is pure .NET (HttpClient + System.Text.Json)
+    so the logic is unit-testable on any OS without the Windows App SDK workload.
+    The only Windows-runtime dependency is DPAPI in NugsSessionStore, which is
+    guarded by OperatingSystem.IsWindows() and never exercised by the tests.
+
+    Standalone: this references NOTHING from the original nugsdotnet projects.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Nugsdotnet.Native.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- DPAPI for at-rest token encryption (Windows runtime only; compiles everywhere). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

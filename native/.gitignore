@@ -1,0 +1,11 @@
+# Build output
+bin/
+obj/
+
+# Local session/token cache (also lives in %LOCALAPPDATA% at runtime)
+session.bin
+tokens.json
+
+# IDE
+.vs/
+*.user

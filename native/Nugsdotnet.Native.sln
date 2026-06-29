@@ -1,0 +1,33 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.0.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nugsdotnet.Native.Core", "Nugsdotnet.Native.Core\Nugsdotnet.Native.Core.csproj", "{7B1E9C30-1A2B-4C3D-9E4F-0A1B2C3D4E5F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nugsdotnet.Native", "Nugsdotnet.Native\Nugsdotnet.Native.csproj", "{8C2F0D41-2B3C-5D4E-AF50-1B2C3D4E5F60}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nugsdotnet.Native.Tests", "Nugsdotnet.Native.Tests\Nugsdotnet.Native.Tests.csproj", "{9D3F1E52-3C4D-6E5F-B061-2C3D4E5F6071}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7B1E9C30-1A2B-4C3D-9E4F-0A1B2C3D4E5F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7B1E9C30-1A2B-4C3D-9E4F-0A1B2C3D4E5F}.Debug|x64.Build.0 = Debug|Any CPU
+		{7B1E9C30-1A2B-4C3D-9E4F-0A1B2C3D4E5F}.Release|x64.ActiveCfg = Release|Any CPU
+		{7B1E9C30-1A2B-4C3D-9E4F-0A1B2C3D4E5F}.Release|x64.Build.0 = Release|Any CPU
+		{8C2F0D41-2B3C-5D4E-AF50-1B2C3D4E5F60}.Debug|x64.ActiveCfg = Debug|x64
+		{8C2F0D41-2B3C-5D4E-AF50-1B2C3D4E5F60}.Debug|x64.Build.0 = Debug|x64
+		{8C2F0D41-2B3C-5D4E-AF50-1B2C3D4E5F60}.Release|x64.ActiveCfg = Release|x64
+		{8C2F0D41-2B3C-5D4E-AF50-1B2C3D4E5F60}.Release|x64.Build.0 = Release|x64
+		{9D3F1E52-3C4D-6E5F-B061-2C3D4E5F6071}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9D3F1E52-3C4D-6E5F-B061-2C3D4E5F6071}.Debug|x64.Build.0 = Debug|Any CPU
+		{9D3F1E52-3C4D-6E5F-B061-2C3D4E5F6071}.Release|x64.ActiveCfg = Release|Any CPU
+		{9D3F1E52-3C4D-6E5F-B061-2C3D4E5F6071}.Release|x64.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
