@@ -11,13 +11,28 @@
                 <ResourceDictionary Source="ms-appx:///Themes/Brand.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Amber accent across accent buttons + selection, with dark text on amber. -->
-            <Color x:Key="SystemAccentColor">#FFFFB22E</Color>
-            <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FFFFB22E" />
-            <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#FFF0A828" />
-            <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#FFD8951F" />
-            <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FF1A1206" />
-            <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FF1A1206" />
+            <!-- Override the Fluent accent (amber) for AccentButton + slider fills.
+                 These brushes are consumed via ThemeResource, so the override must
+                 live in ThemeDictionaries — a root-level override is ignored and the
+                 system accent (teal here) leaks through. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <Color x:Key="SystemAccentColor">#FFFFB22E</Color>
+                    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#FFF0A828" />
+                    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#FFD8951F" />
+                    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FF1A1206" />
+                    <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FF1A1206" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="SystemAccentColor">#FFFFB22E</Color>
+                    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#FFF0A828" />
+                    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#FFD8951F" />
+                    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FF1A1206" />
+                    <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FF1A1206" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
