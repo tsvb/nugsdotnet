@@ -25,7 +25,12 @@ public static class NugsShape
             if (v is JsonValue jv && jv.TryGetValue<string>(out var s) && !string.IsNullOrEmpty(s))
                 return s;
             if (v is not null && v.GetValueKind() != JsonValueKind.Null)
-                return v.ToString();
+            {
+                // Skip empties too, so an empty value falls through to the next
+                // candidate key (matches this method's "first non-empty" contract).
+                var raw = v.ToString();
+                if (!string.IsNullOrEmpty(raw)) return raw;
+            }
         }
         return null;
     }

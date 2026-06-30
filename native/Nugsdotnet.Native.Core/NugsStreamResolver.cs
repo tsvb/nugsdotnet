@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace Nugsdotnet.Native.Core;
@@ -51,7 +50,10 @@ public sealed class NugsStreamResolver
         NugsAuth.SetUA(req, NugsConstants.LegacyUserAgent);  // legacy endpoints use a different UA
         using var res = await _http.SendAsync(req, ct);
         if (!res.IsSuccessStatusCode) return null;
-        var json = await res.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+        // Legacy *.aspx may not send application/json; parse the body directly.
+        var body = await res.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(body);
+        var json = doc.RootElement;
         if (json.TryGetProperty("streamLink", out var s) ||
             json.TryGetProperty("StreamLink", out s))
         {

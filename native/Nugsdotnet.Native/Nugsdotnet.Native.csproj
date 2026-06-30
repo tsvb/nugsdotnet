@@ -33,7 +33,9 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- 8.4.0's source generator fails to compile [ObservableProperty] on .NET 10
+         (CommunityToolkit/dotnet#1139); 8.4.1+ ships the Roslyn 5.0 generator fix. -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
   </ItemGroup>
 

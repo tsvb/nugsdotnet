@@ -59,8 +59,11 @@ public sealed record Session(
     {
         var sub = state.Sub;
         var isPromo = sub.promo is not null;
-        var planId = isPromo ? sub.promo!.plan.id : sub.plan!.id;
-        var planDesc = isPromo ? sub.promo!.plan.description : sub.plan!.description;
+        // promo's inner plan is non-nullable; only the non-promo plan can be absent
+        // (free/expired/lapsed accounts), so guard it rather than force-unwrapping.
+        var plan = isPromo ? sub.promo!.plan : sub.plan;
+        var planId = plan?.id ?? string.Empty;
+        var planDesc = plan?.description ?? string.Empty;
         return new Session(
             state.Tokens.AccessToken,
             state.UserId,

@@ -53,10 +53,38 @@ public sealed class HttpAudioStream : IRandomAccessStream
         res.EnsureSuccessStatusCode();
 
         ulong size = 0;
-        if (res.Content.Headers.ContentRange?.Length is long total) size = (ulong)total;
-        else if (res.Content.Headers.ContentLength is long len) size = (ulong)len;
+        if (res.StatusCode == System.Net.HttpStatusCode.PartialContent &&
+            res.Content.Headers.ContentRange?.Length is long total)
+        {
+            size = (ulong)total;                          // 206: total from Content-Range
+        }
+        else if (res.Content.Headers.ContentLength is long len)
+        {
+            size = (ulong)len;                            // 200 with a declared length
+        }
 
         var contentType = res.Content.Headers.ContentType?.MediaType ?? "audio/flac";
+
+        if (size == 0)
+        {
+            // The range probe returned no usable length (e.g. a chunked 200).
+            // Media Foundation needs a real Size up front, so ask once via HEAD.
+            using var head = new HttpRequestMessage(HttpMethod.Head, url);
+            head.Headers.TryAddWithoutValidation("Referer", referer);
+            head.Headers.TryAddWithoutValidation("User-Agent", ua);
+            using var headRes = await http.SendAsync(head, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (headRes.IsSuccessStatusCode && headRes.Content.Headers.ContentLength is long hlen && hlen > 0)
+                size = (ulong)hlen;
+        }
+
+        if (size == 0)
+        {
+            // Surface a clear error rather than handing MediaPlayer a zero-length
+            // stream, which it reports only as an opaque MediaFailed.
+            throw new InvalidOperationException(
+                "CDN reported no content length (no 206 Content-Range and no Content-Length).");
+        }
+
         return new HttpAudioStream(http, new Uri(url), referer, ua, size, contentType);
     }
 
@@ -101,7 +129,15 @@ public sealed class HttpAudioStream : IRandomAccessStream
             req.Headers.TryAddWithoutValidation("User-Agent", _userAgent);
             req.Headers.Range = new RangeHeaderValue((long)start, (long)end);
             using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, token);
+
+            // An over-read past the real end returns 416. The WinRT EOF signal is an
+            // empty buffer, never a throw (which would surface as MediaFailed).
+            if (res.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+                return Array.Empty<byte>().AsBuffer();
             res.EnsureSuccessStatusCode();
+
+            // Learn the true size from the first ranged response if we didn't know it.
+            if (res.Content.Headers.ContentRange?.Length is long total) _size = (ulong)total;
 
             var bytes = await res.Content.ReadAsByteArrayAsync(token);
             _position = start + (ulong)bytes.Length;

@@ -18,7 +18,9 @@ public sealed partial class MainWindow : Window
             await _shell.InitializeAsync();
             ShowMain();
         };
-        _ = InitializeAsync();
+        ShowLogin();              // show the login panel immediately; the async session
+        _ = InitializeAsync();    // check below switches to the shell if already signed in
+
     }
 
     private async Task InitializeAsync()

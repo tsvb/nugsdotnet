@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 
 namespace Nugsdotnet.Native.Core;
@@ -63,7 +62,10 @@ public sealed class NugsCatalog
         NugsAuth.SetUA(req, NugsConstants.MobileUserAgent);
         using var res = await _http.SendAsync(req, ct);
         res.EnsureSuccessStatusCode();
-        return await res.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct);
+        // nugs's legacy *.aspx handlers don't reliably send an application/json
+        // Content-Type, which ReadFromJsonAsync would reject — parse the body directly.
+        var body = await res.Content.ReadAsStringAsync(ct);
+        return JsonNode.Parse(body);
     }
 
     /// <summary>
