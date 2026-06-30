@@ -70,6 +70,7 @@
                             VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                             Content="{TemplateBinding Content}"
                             Foreground="{TemplateBinding Foreground}"
+                            FontFamily="{TemplateBinding FontFamily}"
                             FontWeight="{TemplateBinding FontWeight}" />
                     </Border>
                 </ControlTemplate>

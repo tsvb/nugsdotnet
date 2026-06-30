@@ -10,6 +10,10 @@ namespace Nugsdotnet.Native.Views;
 
 public sealed partial class TransportView : UserControl
 {
+    // Segoe Fluent Icons glyphs (monochrome, inherit Foreground).
+    private const string PlayGlyph = "\uE768";   // Segoe Fluent: Play
+    private const string PauseGlyph = "\uE769";  // Segoe Fluent: Pause
+
     private readonly PlayerService _player;
     private readonly ImageLoader _images;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
@@ -29,7 +33,7 @@ public sealed partial class TransportView : UserControl
     /// <summary>Polls the player ~4×/sec on the UI thread.</summary>
     private void Refresh()
     {
-        PlayPauseButton.Content = _player.IsPlaying ? "⏸" : "▶";
+        PlayPauseButton.Content = _player.IsPlaying ? PauseGlyph : PlayGlyph;
         NowPlayingText.Text = _player.Status ?? NowPlayingLabel();
         UpdateThumb();
 

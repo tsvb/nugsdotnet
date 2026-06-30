@@ -14,11 +14,15 @@
                 <Image x:Name="Thumb" Stretch="UniformToFill" />
             </Border>
 
-            <Button x:Name="PrevButton" Grid.Column="1" Content="⏮" Click="OnPrev"
+            <!-- Segoe Fluent Icons glyphs (monochrome) — emoji ⏮/⏭ render as colour glyphs. -->
+            <Button x:Name="PrevButton" Grid.Column="1" Content="&#xE892;"
+                    FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnPrev"
                     Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Previous" />
-            <Button x:Name="PlayPauseButton" Grid.Column="2" Content="▶" Width="46" Click="OnPlayPause"
+            <Button x:Name="PlayPauseButton" Grid.Column="2" Content="&#xE768;" Width="46"
+                    FontFamily="Segoe Fluent Icons" FontSize="15" Click="OnPlayPause"
                     Style="{StaticResource PlayButtonStyle}" />
-            <Button x:Name="NextButton" Grid.Column="3" Content="⏭" Click="OnNext"
+            <Button x:Name="NextButton" Grid.Column="3" Content="&#xE893;"
+                    FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnNext"
                     Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Next" />
 
             <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2" Margin="6,0,0,0">
@@ -26,14 +30,32 @@
                            FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
                            Foreground="{StaticResource BrandText}" />
                 <Slider x:Name="PositionSlider" Minimum="0" Maximum="1" StepFrequency="0.1" Margin="0"
-                        PointerPressed="OnSeekStart" PointerReleased="OnSeekEnd" />
+                        PointerPressed="OnSeekStart" PointerReleased="OnSeekEnd">
+                    <Slider.Resources>
+                        <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
+                        <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
+                        <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
+                        <SolidColorBrush x:Key="SliderThumbBackground" Color="#FFFFB22E" />
+                        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFF7A1A" />
+                        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
+                    </Slider.Resources>
+                </Slider>
             </StackPanel>
 
             <TextBlock x:Name="TimeText" Grid.Column="5" VerticalAlignment="Center" Text="0:00 / 0:00"
                        FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
                        Foreground="{StaticResource BrandDim}" />
             <Slider x:Name="VolumeSlider" Grid.Column="6" Minimum="0" Maximum="100" Value="100" Width="90"
-                    VerticalAlignment="Center" ValueChanged="OnVolumeChanged" />
+                    VerticalAlignment="Center" ValueChanged="OnVolumeChanged">
+                <Slider.Resources>
+                    <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackground" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
+                </Slider.Resources>
+            </Slider>
         </Grid>
     </Border>
 </UserControl>
