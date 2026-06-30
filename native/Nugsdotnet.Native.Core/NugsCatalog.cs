@@ -172,7 +172,9 @@ public sealed class NugsCatalog
 
     /// <summary>Flattens a parsed album into a play queue, preserving track order.</summary>
     public static List<NowPlaying> ToQueue(AlbumView album) =>
-        album.Tracks.Select(t => new NowPlaying(t.TrackId, t.Title, album.Artist, album.Title)).ToList();
+        album.Tracks
+            .Select(t => new NowPlaying(t.TrackId, t.Title, album.Artist, album.Title, album.ImagePath))
+            .ToList();
 
     private static int CompareDateDesc(string? a, string? b) => ParseDate(b).CompareTo(ParseDate(a));
 

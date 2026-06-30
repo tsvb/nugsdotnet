@@ -43,4 +43,13 @@
     <ProjectReference Include="..\Nugsdotnet.Native.Core\Nugsdotnet.Native.Core.csproj" />
   </ItemGroup>
 
+  <!-- Bundle the RECEIVER '74 brand fonts. Remove-then-Include guarantees a single
+       Content item whether or not the WinUI Assets glob already picked them up. -->
+  <ItemGroup>
+    <Content Remove="Assets\Fonts\*.ttf" />
+    <Content Include="Assets\Fonts\*.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

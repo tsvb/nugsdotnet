@@ -7,7 +7,14 @@ using Nugsdotnet.Native.Playback;
 
 namespace Nugsdotnet.Native.ViewModels;
 
-/// <summary>Album/show page: header + track list, with play / queue actions.</summary>
+/// <summary>A set of tracks under one header (Set 1 / Set 2 / Encore).</summary>
+public sealed class TrackGroup : List<TrackRow>
+{
+    public string Label { get; }
+    public TrackGroup(string label, IEnumerable<TrackRow> items) : base(items) => Label = label;
+}
+
+/// <summary>Album/show page: header + set-grouped track list, with play / queue actions.</summary>
 public partial class AlbumViewModel : ObservableObject
 {
     private readonly NugsCatalog _catalog;
@@ -17,7 +24,8 @@ public partial class AlbumViewModel : ObservableObject
     private AlbumView? _album;
     private List<NowPlaying> _queue = new();
 
-    public ObservableCollection<TrackRow> Tracks { get; } = new();
+    /// <summary>Tracks grouped by set — bound through a grouped CollectionViewSource.</summary>
+    public ObservableCollection<TrackGroup> TrackGroups { get; } = new();
 
     [ObservableProperty] private string? title;
     [ObservableProperty] private string? subtitle;
@@ -37,18 +45,20 @@ public partial class AlbumViewModel : ObservableObject
     {
         Busy = true;
         Status = null;
-        Tracks.Clear();
+        TrackGroups.Clear();
         Cover = null;
         try
         {
             _album = NugsCatalog.ParseAlbum(await _catalog.GetAlbumAsync(containerId));
             Title = _album.Title;
-            Subtitle = string.Join("  ·  ",
+            Subtitle = string.Join("   ·   ",
                 new[] { _album.Artist, _album.Date, _album.Venue }.Where(x => !string.IsNullOrEmpty(x)));
             Runtime = _album.RunTime;
-            foreach (var t in _album.Tracks) Tracks.Add(t);
             _queue = NugsCatalog.ToQueue(_album);
-            if (Tracks.Count == 0) Status = "No tracks in this container.";
+
+            foreach (var g in _album.Tracks.GroupBy(t => t.SetNum))
+                TrackGroups.Add(new TrackGroup(SetLabel(g.Key), g));
+            if (_album.Tracks.Count == 0) Status = "No tracks in this container.";
 
             if (!string.IsNullOrEmpty(_album.ImagePath))
                 Cover = await _images.LoadAsync(_album.ImagePath);
@@ -86,5 +96,13 @@ public partial class AlbumViewModel : ObservableObject
     }
 
     private List<NowPlaying> One(TrackRow t) =>
-        new() { new NowPlaying(t.TrackId, t.Title, _album?.Artist, _album?.Title) };
+        new() { new NowPlaying(t.TrackId, t.Title, _album?.Artist, _album?.Title, _album?.ImagePath) };
+
+    private static string SetLabel(int setNum) => setNum switch
+    {
+        <= 0 => "Tracks",
+        1 or 2 or 3 => $"Set {setNum}",
+        4 => "Encore",
+        _ => $"Encore {setNum - 3}",
+    };
 }

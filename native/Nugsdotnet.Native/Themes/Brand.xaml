@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ════ RECEIVER '74 palette — warm-VFD vintage hi-fi ════
+         AMBER = signal / now-playing.  Mirrors src/Nugsdotnet.UI/wwwroot/css/app.css. -->
+    <SolidColorBrush x:Key="BrandBg" Color="#FF0A0907" />
+    <SolidColorBrush x:Key="BrandSurface" Color="#FF15120D" />
+    <SolidColorBrush x:Key="BrandSurface2" Color="#FF1F1A12" />
+    <SolidColorBrush x:Key="BrandText" Color="#FFEFE4CF" />
+    <SolidColorBrush x:Key="BrandDim" Color="#FF9A8B6E" />
+    <SolidColorBrush x:Key="BrandAccent" Color="#FFFFB22E" />
+    <SolidColorBrush x:Key="BrandAccent2" Color="#FFFF7A1A" />
+    <SolidColorBrush x:Key="BrandBorder" Color="#FF3A3024" />
+    <SolidColorBrush x:Key="BrandVfd" Color="#FF100B05" />
+
+    <!-- Brand typography (variable fonts pick weight via FontWeight). -->
+    <FontFamily x:Key="BrandDisplayFont">ms-appx:///Assets/Fonts/BigShouldersDisplay.ttf#Big Shoulders Display</FontFamily>
+    <FontFamily x:Key="BrandBodyFont">ms-appx:///Assets/Fonts/HankenGrotesk.ttf#Hanken Grotesk</FontFamily>
+    <FontFamily x:Key="BrandMonoFont">ms-appx:///Assets/Fonts/DMMono-Medium.ttf#DM Mono</FontFamily>
+
+    <!-- dim, transparent icon button for the per-track / transport controls -->
+    <Style x:Key="IconButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource BrandDim}" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="MinWidth" Value="34" />
+    </Style>
+
+</ResourceDictionary>

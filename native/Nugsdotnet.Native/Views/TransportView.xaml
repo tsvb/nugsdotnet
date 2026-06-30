@@ -4,21 +4,36 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid Padding="12,8" ColumnSpacing="10"
-          ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
-          Background="{ThemeResource LayerFillColorDefaultBrush}">
-        <Button x:Name="PrevButton" Grid.Column="0" Content="⏮" Click="OnPrev" ToolTipService.ToolTip="Previous" />
-        <Button x:Name="PlayPauseButton" Grid.Column="1" Content="▶" Width="44" Click="OnPlayPause" />
-        <Button x:Name="NextButton" Grid.Column="2" Content="⏭" Click="OnNext" ToolTipService.ToolTip="Next" />
+    <Border Background="{StaticResource BrandSurface}"
+            BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,1,0,0">
+        <Grid Padding="14,8" ColumnSpacing="10"
+              ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="3"
+                    Background="{StaticResource BrandSurface2}"
+                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                <Image x:Name="Thumb" Stretch="UniformToFill" />
+            </Border>
 
-        <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
-            <TextBlock x:Name="NowPlayingText" Text="" TextTrimming="CharacterEllipsis" />
-            <Slider x:Name="PositionSlider" Minimum="0" Maximum="1" StepFrequency="0.1" Margin="0"
-                    PointerPressed="OnSeekStart" PointerReleased="OnSeekEnd" />
-        </StackPanel>
+            <Button x:Name="PrevButton" Grid.Column="1" Content="⏮" Click="OnPrev"
+                    Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Previous" />
+            <Button x:Name="PlayPauseButton" Grid.Column="2" Content="▶" Width="46" Click="OnPlayPause"
+                    Style="{StaticResource AccentButtonStyle}" />
+            <Button x:Name="NextButton" Grid.Column="3" Content="⏭" Click="OnNext"
+                    Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Next" />
 
-        <TextBlock x:Name="TimeText" Grid.Column="4" VerticalAlignment="Center" Text="0:00 / 0:00" />
-        <Slider x:Name="VolumeSlider" Grid.Column="5" Minimum="0" Maximum="100" Value="100" Width="90"
-                VerticalAlignment="Center" ValueChanged="OnVolumeChanged" />
-    </Grid>
+            <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2" Margin="6,0,0,0">
+                <TextBlock x:Name="NowPlayingText" Text="" TextTrimming="CharacterEllipsis"
+                           FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
+                           Foreground="{StaticResource BrandText}" />
+                <Slider x:Name="PositionSlider" Minimum="0" Maximum="1" StepFrequency="0.1" Margin="0"
+                        PointerPressed="OnSeekStart" PointerReleased="OnSeekEnd" />
+            </StackPanel>
+
+            <TextBlock x:Name="TimeText" Grid.Column="5" VerticalAlignment="Center" Text="0:00 / 0:00"
+                       FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                       Foreground="{StaticResource BrandDim}" />
+            <Slider x:Name="VolumeSlider" Grid.Column="6" Minimum="0" Maximum="100" Value="100" Width="90"
+                    VerticalAlignment="Center" ValueChanged="OnVolumeChanged" />
+        </Grid>
+    </Border>
 </UserControl>

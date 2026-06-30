@@ -5,23 +5,29 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:views="using:Nugsdotnet.Native.Views">
 
-    <Grid>
+    <Grid Background="{StaticResource BrandBg}">
         <!-- Logged-out -->
         <views:LoginView x:Name="LoginPanel" Visibility="Collapsed" />
 
-        <!-- Logged-in shell: topbar / page frame / transport -->
+        <!-- Logged-in shell: topbar faceplate / page frame / transport -->
         <Grid x:Name="MainPanel" Visibility="Collapsed" RowDefinitions="Auto,*,Auto">
-            <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="8"
-                  ColumnDefinitions="Auto,Auto,*,Auto"
-                  Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <Button Grid.Column="0" Content="◀" Click="OnBack" ToolTipService.ToolTip="Back" />
-                <Button Grid.Column="1" Content="nugsdotnet" Click="OnHome"
-                        Background="Transparent" BorderThickness="0" FontWeight="SemiBold" FontSize="16" />
-                <AutoSuggestBox Grid.Column="2" x:Name="SearchBox" QueryIcon="Find"
-                                PlaceholderText="Search artists, shows, songs…"
-                                QuerySubmitted="OnSearchSubmitted" />
-                <Button Grid.Column="3" Content="sign out" Click="OnSignOut" />
-            </Grid>
+            <Border Grid.Row="0" Background="{StaticResource BrandSurface}"
+                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,0,0,1">
+                <Grid Padding="14,10" ColumnSpacing="12" ColumnDefinitions="Auto,Auto,*,Auto">
+                    <Button Grid.Column="0" Content="◀" Click="OnBack"
+                            Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Back" />
+                    <Button Grid.Column="1" Content="NUGSDOTNET" Click="OnHome"
+                            Background="Transparent" BorderThickness="0" Padding="4,0"
+                            FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
+                            FontSize="20" CharacterSpacing="40" Foreground="{StaticResource BrandText}" />
+                    <AutoSuggestBox Grid.Column="2" x:Name="SearchBox" QueryIcon="Find" MaxWidth="520"
+                                    HorizontalAlignment="Stretch"
+                                    PlaceholderText="Search artists, shows, songs…"
+                                    QuerySubmitted="OnSearchSubmitted" />
+                    <Button Grid.Column="3" Content="sign out" Click="OnSignOut"
+                            Style="{StaticResource IconButtonStyle}" />
+                </Grid>
+            </Border>
 
             <Frame Grid.Row="1" x:Name="ContentFrame" />
             <views:TransportView Grid.Row="2" />

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Navigation;
 using Nugsdotnet.Native.Core;
 using Nugsdotnet.Native.ViewModels;
@@ -22,6 +23,10 @@ public sealed partial class AlbumPage : Page
     {
         var containerId = e.Parameter as string ?? "";
         await _vm.LoadAsync(containerId);
+        // Grouped source is set after the data loads (a CVS in resources can't bind to DataContext).
+        var cvs = (CollectionViewSource)Resources["TracksSource"];
+        cvs.Source = _vm.TrackGroups;
+        TracksList.ItemsSource = cvs.View;
     }
 
     private void OnPlayAll(object sender, RoutedEventArgs e) => _vm.PlayAll();

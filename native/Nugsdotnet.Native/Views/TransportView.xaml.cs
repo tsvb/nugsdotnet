@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Nugsdotnet.Native.Imaging;
 using Nugsdotnet.Native.Playback;
 
 namespace Nugsdotnet.Native.Views;
@@ -10,23 +11,27 @@ namespace Nugsdotnet.Native.Views;
 public sealed partial class TransportView : UserControl
 {
     private readonly PlayerService _player;
+    private readonly ImageLoader _images;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _scrubbing;
+    private string? _thumbTrackId;
 
     public TransportView()
     {
         InitializeComponent();
         _player = App.Services.GetRequiredService<PlayerService>();
+        _images = App.Services.GetRequiredService<ImageLoader>();
         _timer.Tick += (_, _) => Refresh();
         Loaded += (_, _) => _timer.Start();
         Unloaded += (_, _) => _timer.Stop();
     }
 
-    /// <summary>Polls the player ~4×/sec; MediaPlayer state is read off-thread-safe.</summary>
+    /// <summary>Polls the player ~4×/sec on the UI thread.</summary>
     private void Refresh()
     {
         PlayPauseButton.Content = _player.IsPlaying ? "⏸" : "▶";
         NowPlayingText.Text = _player.Status ?? NowPlayingLabel();
+        UpdateThumb();
 
         var dur = _player.Duration.TotalSeconds;
         var pos = _player.Position.TotalSeconds;
@@ -43,6 +48,17 @@ public sealed partial class TransportView : UserControl
         var c = _player.Current;
         if (c is null) return "";
         return string.IsNullOrEmpty(c.Artist) ? (c.Title ?? "") : $"{c.Title} — {c.Artist}";
+    }
+
+    /// <summary>Reloads the thumbnail only when the current track changes.</summary>
+    private async void UpdateThumb()
+    {
+        var c = _player.Current;
+        if (c?.TrackId == _thumbTrackId) return;
+        _thumbTrackId = c?.TrackId;
+        Thumb.Source = null;
+        if (c?.ImagePath is { Length: > 0 } path)
+            Thumb.Source = await _images.LoadAsync(path);
     }
 
     private void OnPlayPause(object sender, RoutedEventArgs e) => _player.TogglePlayPause();

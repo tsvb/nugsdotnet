@@ -2,12 +2,22 @@
 <Application
     x:Class="Nugsdotnet.Native.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    RequestedTheme="Dark">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <ResourceDictionary Source="ms-appx:///Themes/Brand.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Amber accent across accent buttons + selection, with dark text on amber. -->
+            <Color x:Key="SystemAccentColor">#FFFFB22E</Color>
+            <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FFFFB22E" />
+            <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#FFF0A828" />
+            <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#FFD8951F" />
+            <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FF1A1206" />
+            <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FF1A1206" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
