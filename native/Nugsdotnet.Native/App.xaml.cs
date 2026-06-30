@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Nugsdotnet.Native.Core;
+using Nugsdotnet.Native.Imaging;
 using Nugsdotnet.Native.Playback;
 using Nugsdotnet.Native.ViewModels;
 
@@ -32,12 +33,16 @@ public partial class App : Application
         sc.AddSingleton<NugsAuth>();
         sc.AddSingleton<NugsCatalog>();
         sc.AddSingleton<NugsStreamResolver>();
+        sc.AddSingleton<ImageLoader>();
 
         // Playback + view models.
         sc.AddSingleton<PlayerService>();
         sc.AddSingleton<ShellViewModel>();
         sc.AddTransient<LoginViewModel>();
-        sc.AddTransient<SearchViewModel>();
+        sc.AddTransient<HomeViewModel>();
+        sc.AddTransient<SearchResultsViewModel>();
+        sc.AddTransient<ArtistViewModel>();
+        sc.AddTransient<AlbumViewModel>();
 
         return sc.BuildServiceProvider();
     }

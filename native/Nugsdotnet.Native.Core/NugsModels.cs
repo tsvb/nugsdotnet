@@ -94,11 +94,39 @@ public sealed record SessionInfo(
     string? Plan = null,
     bool Accessible = false);
 
-/// <summary>A single search/track result the UI can render and play.</summary>
-public sealed record TrackEntry(
-    string TrackId,
-    string? Title,
-    string? Artist,
-    string? Show = null);
-
 public sealed record ArtistEntry(string Id, string Name);
+
+/// <summary>A show or studio release as it appears in a list (search / artist page).</summary>
+public sealed record ContainerEntry(
+    string Id, string? Title, string? Artist, string? Date, string? Venue, string? ImagePath, bool IsShow)
+{
+    /// <summary>"date · venue · artist" with blanks skipped — for list rows.</summary>
+    public string Subtitle =>
+        string.Join("  ·  ", new[] { Date, Venue, Artist }.Where(s => !string.IsNullOrEmpty(s)));
+}
+
+/// <summary>One track row within an album/show.</summary>
+public sealed record TrackRow(string TrackId, string? Title, string? RunTime, int SetNum, int TrackNum)
+{
+    /// <summary>"3. Song Title" (or just the title for studio tracks).</summary>
+    public string Display => TrackNum > 0 ? $"{TrackNum}. {Title}" : (Title ?? "");
+}
+
+/// <summary>A fully-parsed album/show with its track list.</summary>
+public sealed record AlbumView(
+    string Id, string? Title, string? Artist, string? ArtistId,
+    string? Date, string? Venue, string? RunTime, string? ImagePath,
+    IReadOnlyList<TrackRow> Tracks);
+
+/// <summary>One labelled section of search results (a scHeader + its items).</summary>
+public sealed record SearchSection(string? Header, IReadOnlyList<ContainerEntry> Items);
+
+/// <summary>Parsed catalog.search: the deduped artists plus the labelled sections.</summary>
+public sealed record SearchView(IReadOnlyList<ArtistEntry> Artists, IReadOnlyList<SearchSection> Sections);
+
+/// <summary>Parsed artist page: studio releases and live shows.</summary>
+public sealed record ArtistShows(
+    string? ArtistName, IReadOnlyList<ContainerEntry> Releases, IReadOnlyList<ContainerEntry> Shows);
+
+/// <summary>One item in the play queue.</summary>
+public sealed record NowPlaying(string TrackId, string? Title, string? Artist, string? Show);

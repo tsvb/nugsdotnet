@@ -9,16 +9,21 @@
         <!-- Logged-out -->
         <views:LoginView x:Name="LoginPanel" Visibility="Collapsed" />
 
-        <!-- Logged-in shell: topbar / content / transport -->
+        <!-- Logged-in shell: topbar / page frame / transport -->
         <Grid x:Name="MainPanel" Visibility="Collapsed" RowDefinitions="Auto,*,Auto">
-            <Grid Grid.Row="0" Padding="16,10" ColumnDefinitions="*,Auto"
+            <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="8"
+                  ColumnDefinitions="Auto,Auto,*,Auto"
                   Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <TextBlock Grid.Column="0" Text="nugsdotnet" FontSize="18"
-                           FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="sign out" Click="OnSignOut" />
+                <Button Grid.Column="0" Content="◀" Click="OnBack" ToolTipService.ToolTip="Back" />
+                <Button Grid.Column="1" Content="nugsdotnet" Click="OnHome"
+                        Background="Transparent" BorderThickness="0" FontWeight="SemiBold" FontSize="16" />
+                <AutoSuggestBox Grid.Column="2" x:Name="SearchBox" QueryIcon="Find"
+                                PlaceholderText="Search artists, shows, songs…"
+                                QuerySubmitted="OnSearchSubmitted" />
+                <Button Grid.Column="3" Content="sign out" Click="OnSignOut" />
             </Grid>
 
-            <views:SearchView Grid.Row="1" />
+            <Frame Grid.Row="1" x:Name="ContentFrame" />
             <views:TransportView Grid.Row="2" />
         </Grid>
     </Grid>

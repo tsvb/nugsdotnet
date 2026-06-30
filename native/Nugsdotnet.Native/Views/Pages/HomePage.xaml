@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Nugsdotnet.Native.Views.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="using:Nugsdotnet.Native.Core">
+
+    <Grid Padding="16" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+        <TextBox Grid.Row="0" PlaceholderText="Filter artists…" Text="{Binding Filter, Mode=TwoWay}" />
+        <TextBlock Grid.Row="1" Foreground="Gray" Text="{Binding Status}" />
+        <ListView Grid.Row="2" ItemsSource="{Binding Artists}" SelectionMode="None"
+                  IsItemClickEnabled="True" ItemClick="OnArtistClick">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="core:ArtistEntry">
+                    <TextBlock Text="{x:Bind Name}" Padding="0,6" />
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>

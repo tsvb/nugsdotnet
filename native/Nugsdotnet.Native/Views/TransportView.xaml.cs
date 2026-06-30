@@ -22,11 +22,12 @@ public sealed partial class TransportView : UserControl
         Unloaded += (_, _) => _timer.Stop();
     }
 
-    /// <summary>Polls the player ~4×/sec — MediaPlayer events fire off-thread, so
-    /// polling on the UI DispatcherTimer keeps all element access on-thread.</summary>
+    /// <summary>Polls the player ~4×/sec; MediaPlayer state is read off-thread-safe.</summary>
     private void Refresh()
     {
         PlayPauseButton.Content = _player.IsPlaying ? "⏸" : "▶";
+        NowPlayingText.Text = _player.Status ?? NowPlayingLabel();
+
         var dur = _player.Duration.TotalSeconds;
         var pos = _player.Position.TotalSeconds;
         if (!_scrubbing)
@@ -37,7 +38,16 @@ public sealed partial class TransportView : UserControl
         TimeText.Text = $"{Fmt(pos)} / {Fmt(dur)}";
     }
 
+    private string NowPlayingLabel()
+    {
+        var c = _player.Current;
+        if (c is null) return "";
+        return string.IsNullOrEmpty(c.Artist) ? (c.Title ?? "") : $"{c.Title} — {c.Artist}";
+    }
+
     private void OnPlayPause(object sender, RoutedEventArgs e) => _player.TogglePlayPause();
+    private void OnPrev(object sender, RoutedEventArgs e) => _player.Previous();
+    private void OnNext(object sender, RoutedEventArgs e) => _player.Next();
 
     private void OnSeekStart(object sender, PointerRoutedEventArgs e) => _scrubbing = true;
 
@@ -49,8 +59,7 @@ public sealed partial class TransportView : UserControl
 
     private void OnVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        // Fires during XAML init (initial Value=100) before _player is assigned.
-        if (_player is null) return;
+        if (_player is null) return;   // fires during XAML init before _player is set
         _player.Volume = e.NewValue / 100.0;
     }
 
