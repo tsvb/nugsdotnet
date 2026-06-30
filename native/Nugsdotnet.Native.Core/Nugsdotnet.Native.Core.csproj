@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <!-- DPAPI for at-rest token encryption (Windows runtime only; compiles everywhere). -->
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

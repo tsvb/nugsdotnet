@@ -5,10 +5,10 @@
     self-contained win-x64, no MSIX and no MAUI workload required (the App SDK
     is pure NuGet). References only the standalone Core library in this subtree.
 
-    NOTE: package versions below are best-effort pins. If `dotnet restore` can't
-    find one, bump to the latest stable (Microsoft.WindowsAppSDK 1.x) — the API
-    surface used here (MediaPlayer, MediaPlaybackList, IRandomAccessStream) has
-    been stable across 1.x.
+    Targets net10.0 on the latest Windows App SDK (2.2.0). WindowsAppSDK pulls a
+    matching SDK.BuildTools transitively, so we don't pin that separately. The API
+    surface used here (MediaPlayer, MediaPlaybackList, IRandomAccessStream) is stable.
+    Requires the .NET 10 SDK on the build machine.
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -32,10 +32,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
