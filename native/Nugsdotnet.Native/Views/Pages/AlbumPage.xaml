@@ -28,7 +28,7 @@
                 <TextBlock Text="{Binding Runtime}" FontSize="12"
                            FontFamily="{StaticResource BrandMonoFont}" Foreground="{StaticResource BrandAccent}" />
                 <Button Content="▶  Play all" Click="OnPlayAll" Margin="0,8,0,0"
-                        Style="{StaticResource AccentButtonStyle}" />
+                        Style="{StaticResource PlayButtonStyle}" />
             </StackPanel>
         </Grid>
 

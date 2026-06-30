@@ -17,7 +17,7 @@
             <Button x:Name="PrevButton" Grid.Column="1" Content="⏮" Click="OnPrev"
                     Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Previous" />
             <Button x:Name="PlayPauseButton" Grid.Column="2" Content="▶" Width="46" Click="OnPlayPause"
-                    Style="{StaticResource AccentButtonStyle}" />
+                    Style="{StaticResource PlayButtonStyle}" />
             <Button x:Name="NextButton" Grid.Column="3" Content="⏭" Click="OnNext"
                     Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Next" />
 

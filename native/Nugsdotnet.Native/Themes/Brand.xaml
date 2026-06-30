@@ -29,4 +29,52 @@
         <Setter Property="MinWidth" Value="34" />
     </Style>
 
+    <!-- The lit amber primary button. WinUI 3 hard-codes the Fluent accent
+         (microsoft-ui-xaml#6394), so AccentButtonStyle can't be recoloured —
+         this owns its template and paints BrandAccent directly. -->
+    <Style x:Key="PlayButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource BrandAccent}" />
+        <Setter Property="Foreground" Value="#FF1A1206" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root" CornerRadius="4"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{StaticResource BrandAccent2}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{StaticResource BrandAccent2}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{StaticResource BrandSurface2}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}"
+                            Foreground="{TemplateBinding Foreground}"
+                            FontWeight="{TemplateBinding FontWeight}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

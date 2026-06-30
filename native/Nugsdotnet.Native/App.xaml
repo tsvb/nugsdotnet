@@ -11,26 +11,27 @@
                 <ResourceDictionary Source="ms-appx:///Themes/Brand.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Override the Fluent accent (amber) for AccentButton + slider fills.
-                 These brushes are consumed via ThemeResource, so the override must
-                 live in ThemeDictionaries — a root-level override is ignored and the
-                 system accent (teal here) leaks through. -->
             <ResourceDictionary.ThemeDictionaries>
+                <!-- Both keys filled so the override holds regardless of resolved theme.
+                     The Fluent *accent* itself is hard-coded in WinUI 3 (#6394) — primary
+                     buttons use the custom PlayButtonStyle instead. These per-control Slider
+                     brushes are ordinary theme resources and DO override, so the seek/volume
+                     fills + thumbs read amber. -->
                 <ResourceDictionary x:Key="Default">
-                    <Color x:Key="SystemAccentColor">#FFFFB22E</Color>
-                    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FFFFB22E" />
-                    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#FFF0A828" />
-                    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#FFD8951F" />
-                    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FF1A1206" />
-                    <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FF1A1206" />
+                    <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackground" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="SystemAccentColor">#FFFFB22E</Color>
-                    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FFFFB22E" />
-                    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#FFF0A828" />
-                    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#FFD8951F" />
-                    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FF1A1206" />
-                    <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FF1A1206" />
+                    <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackground" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

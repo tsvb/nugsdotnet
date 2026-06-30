@@ -22,7 +22,7 @@
                 <PasswordBox x:Name="PasswordInput" Header="Password" PasswordChanged="OnPasswordChanged" />
 
                 <Button x:Name="SignInButton" Content="Sign in" Click="OnSignIn"
-                        Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" />
+                        Style="{StaticResource PlayButtonStyle}" HorizontalAlignment="Stretch" />
 
                 <TextBlock Text="{Binding Error}" Foreground="#FFEF4444" TextWrapping="Wrap" />
             </StackPanel>
