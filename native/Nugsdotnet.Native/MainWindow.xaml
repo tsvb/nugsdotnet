@@ -20,10 +20,10 @@
                             Background="Transparent" BorderThickness="0" Padding="4,0"
                             FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
                             FontSize="20" CharacterSpacing="40" Foreground="{StaticResource BrandText}" />
-                    <AutoSuggestBox Grid.Column="2" x:Name="SearchBox" QueryIcon="Find" MaxWidth="520"
-                                    HorizontalAlignment="Stretch"
-                                    PlaceholderText="Search artists, shows, songs…"
-                                    QuerySubmitted="OnSearchSubmitted" />
+                    <TextBox Grid.Column="2" x:Name="SearchBox" MaxWidth="520"
+                             HorizontalAlignment="Stretch"
+                             PlaceholderText="Search artists, shows, songs…  (Enter to search)"
+                             KeyDown="OnSearchKeyDown" />
                     <Button Grid.Column="3" Content="sign out" Click="OnSignOut"
                             Style="{StaticResource IconButtonStyle}" />
                 </Grid>

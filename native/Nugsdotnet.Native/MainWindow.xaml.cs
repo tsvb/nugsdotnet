@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Nugsdotnet.Native.ViewModels;
 using Nugsdotnet.Native.Views.Pages;
 
@@ -52,9 +53,11 @@ public sealed partial class MainWindow : Window
 
     private void OnHome(object sender, RoutedEventArgs e) => ContentFrame.Navigate(typeof(HomePage));
 
-    private void OnSearchSubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        var q = args.QueryText?.Trim();
+        if (e.Key != Windows.System.VirtualKey.Enter) return;
+        e.Handled = true;
+        var q = SearchBox.Text?.Trim();
         if (!string.IsNullOrEmpty(q))
             ContentFrame.Navigate(typeof(SearchResultsPage), q);
     }
