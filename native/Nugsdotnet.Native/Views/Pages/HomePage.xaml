@@ -6,11 +6,17 @@
     xmlns:core="using:Nugsdotnet.Native.Core"
     Background="{StaticResource BrandBg}">
 
-    <Grid Padding="24" RowDefinitions="Auto,Auto,*" RowSpacing="10">
-        <TextBox Grid.Row="0" PlaceholderText="Filter artists…" MaxWidth="360" HorizontalAlignment="Left"
+    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="10">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+            <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                    Background="{StaticResource BrandAccent}" />
+            <TextBlock Text="ARTISTS" FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                       CharacterSpacing="140" Foreground="{StaticResource BrandDim}" />
+        </StackPanel>
+        <TextBox Grid.Row="1" PlaceholderText="Filter artists…" MaxWidth="360" HorizontalAlignment="Left"
                  Text="{Binding Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-        <TextBlock Grid.Row="1" Foreground="{StaticResource BrandDim}" Text="{Binding Status}" />
-        <ListView Grid.Row="2" ItemsSource="{Binding Artists}" SelectionMode="None"
+        <TextBlock Grid.Row="2" Foreground="{StaticResource BrandDim}" Text="{Binding Status}" />
+        <ListView Grid.Row="3" ItemsSource="{Binding Artists}" SelectionMode="None"
                   IsItemClickEnabled="True" ItemClick="OnArtistClick">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="core:ArtistEntry">

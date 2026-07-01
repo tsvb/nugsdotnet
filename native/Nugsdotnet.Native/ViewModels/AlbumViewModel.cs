@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Nugsdotnet.Native.Core;
 using Nugsdotnet.Native.Imaging;
@@ -7,11 +8,27 @@ using Nugsdotnet.Native.Playback;
 
 namespace Nugsdotnet.Native.ViewModels;
 
+/// <summary>One track row: the immutable Core row plus live now-playing state.</summary>
+public sealed partial class TrackItem : ObservableObject
+{
+    public TrackRow Track { get; }
+    public TrackItem(TrackRow track) => Track = track;
+
+    public string Display => Track.Display;
+    public string? RunTime => Track.RunTime;
+
+    [ObservableProperty] private bool isNowPlaying;
+
+    /// <summary>x:Bind function binding — AMBER = signal / now-playing.</summary>
+    public Brush RowForeground(bool nowPlaying) =>
+        (Brush)Application.Current.Resources[nowPlaying ? "BrandAccent" : "BrandText"];
+}
+
 /// <summary>A set of tracks under one header (Set 1 / Set 2 / Encore).</summary>
-public sealed class TrackGroup : List<TrackRow>
+public sealed class TrackGroup : List<TrackItem>
 {
     public string Label { get; }
-    public TrackGroup(string label, IEnumerable<TrackRow> items) : base(items) => Label = label;
+    public TrackGroup(string label, IEnumerable<TrackItem> items) : base(items) => Label = label;
 }
 
 /// <summary>Album/show page: header + set-grouped track list, with play / queue actions.</summary>
@@ -57,8 +74,9 @@ public partial class AlbumViewModel : ObservableObject
             _queue = NugsCatalog.ToQueue(_album);
 
             foreach (var g in _album.Tracks.GroupBy(t => t.SetNum))
-                TrackGroups.Add(new TrackGroup(SetLabel(g.Key), g));
+                TrackGroups.Add(new TrackGroup(SetLabel(g.Key), g.Select(t => new TrackItem(t))));
             if (_album.Tracks.Count == 0) Status = "No tracks in this container.";
+            RefreshNowPlaying();   // this album may already be playing
 
             if (!string.IsNullOrEmpty(_album.ImagePath))
                 Cover = await _images.LoadAsync(_album.ImagePath);
@@ -76,17 +94,39 @@ public partial class AlbumViewModel : ObservableObject
     public void PlayAll()
     {
         if (_queue.Count > 0) _player.Play(_queue, 0);
+        RefreshNowPlaying();
     }
 
-    public void PlayFrom(TrackRow track)
+    public void PlayFrom(TrackItem track)
     {
-        var i = IndexOf(track);
+        var i = IndexOf(track.Track);
         if (i >= 0) _player.Play(_queue, i);
+        RefreshNowPlaying();
     }
 
-    public void EnqueueOne(TrackRow track) => _player.Enqueue(One(track));
+    public void EnqueueOne(TrackItem track)
+    {
+        _player.Enqueue(One(track.Track));
+        RefreshNowPlaying();   // starts playing when the queue was idle
+    }
 
-    public void PlayNextOne(TrackRow track) => _player.PlayNext(One(track));
+    public void PlayNextOne(TrackItem track)
+    {
+        _player.PlayNext(One(track.Track));
+        RefreshNowPlaying();
+    }
+
+    /// <summary>
+    /// Lights the row whose track is current in the player. Polled by the page
+    /// (PlayerService has no events); setters no-op when nothing changed.
+    /// </summary>
+    public void RefreshNowPlaying()
+    {
+        var id = _player.Current?.TrackId;
+        foreach (var group in TrackGroups)
+            foreach (var item in group)
+                item.IsNowPlaying = id is not null && item.Track.TrackId == id;
+    }
 
     private int IndexOf(TrackRow track)
     {
