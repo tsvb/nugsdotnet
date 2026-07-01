@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Nugsdotnet.Native.Core;
@@ -17,11 +18,23 @@ public sealed partial class HomePage : Page
         DataContext = _vm;
     }
 
-    protected override async void OnNavigatedTo(NavigationEventArgs e) => await _vm.LoadAsync();
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    {
+        // Recents are local and fast — show the rail before the artist fetch.
+        await _vm.RefreshRecentsAsync();
+        RecentSection.Visibility = _vm.Recent.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        await _vm.LoadArtistsAsync();
+    }
 
     private void OnArtistClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is ArtistEntry a)
             Frame.Navigate(typeof(ArtistPage), a.Id);
+    }
+
+    private void OnRecentClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: ShowCard c })
+            Frame.Navigate(typeof(AlbumPage), c.ContainerId);
     }
 }

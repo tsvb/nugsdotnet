@@ -33,13 +33,15 @@ public partial class App : Application
         sc.AddSingleton<NugsAuth>();
         sc.AddSingleton<NugsCatalog>();
         sc.AddSingleton<NugsStreamResolver>();
+        sc.AddSingleton<RecentsStore>();
         sc.AddSingleton<ImageLoader>();
 
-        // Playback + view models.
+        // Playback + view models. Home is a singleton so the artist list and
+        // dashboard survive navigation (it was refetching per visit as transient).
         sc.AddSingleton<PlayerService>();
         sc.AddSingleton<ShellViewModel>();
         sc.AddTransient<LoginViewModel>();
-        sc.AddTransient<HomeViewModel>();
+        sc.AddSingleton<HomeViewModel>();
         sc.AddTransient<SearchResultsViewModel>();
         sc.AddTransient<ArtistViewModel>();
         sc.AddTransient<AlbumViewModel>();

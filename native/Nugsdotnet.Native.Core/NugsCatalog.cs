@@ -194,7 +194,9 @@ public sealed class NugsCatalog
         foreach (var item in arr)
         {
             var id = NugsShape.Str(item, "artistID", "ArtistID", "artistId", "id");
-            var name = NugsShape.Str(item, "artistName", "ArtistName", "name");
+            // Trim: the catalog has entries like " Paco de Lucia" whose leading
+            // space would otherwise sort them above everything.
+            var name = NugsShape.Str(item, "artistName", "ArtistName", "name")?.Trim();
             if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(name))
                 list.Add(new ArtistEntry(id!, name!));
         }

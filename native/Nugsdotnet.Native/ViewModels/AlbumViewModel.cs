@@ -37,6 +37,7 @@ public partial class AlbumViewModel : ObservableObject
     private readonly NugsCatalog _catalog;
     private readonly PlayerService _player;
     private readonly ImageLoader _images;
+    private readonly RecentsStore _recents;
 
     private AlbumView? _album;
     private List<NowPlaying> _queue = new();
@@ -51,11 +52,12 @@ public partial class AlbumViewModel : ObservableObject
     [ObservableProperty] private bool busy;
     [ObservableProperty] private string? status;
 
-    public AlbumViewModel(NugsCatalog catalog, PlayerService player, ImageLoader images)
+    public AlbumViewModel(NugsCatalog catalog, PlayerService player, ImageLoader images, RecentsStore recents)
     {
         _catalog = catalog;
         _player = player;
         _images = images;
+        _recents = recents;
     }
 
     public async Task LoadAsync(string containerId)
@@ -93,14 +95,22 @@ public partial class AlbumViewModel : ObservableObject
 
     public void PlayAll()
     {
-        if (_queue.Count > 0) _player.Play(_queue, 0);
+        if (_queue.Count > 0)
+        {
+            _player.Play(_queue, 0);
+            RecordRecent();
+        }
         RefreshNowPlaying();
     }
 
     public void PlayFrom(TrackItem track)
     {
         var i = IndexOf(track.Track);
-        if (i >= 0) _player.Play(_queue, i);
+        if (i >= 0)
+        {
+            _player.Play(_queue, i);
+            RecordRecent();
+        }
         RefreshNowPlaying();
     }
 
@@ -126,6 +136,15 @@ public partial class AlbumViewModel : ObservableObject
         foreach (var group in TrackGroups)
             foreach (var item in group)
                 item.IsNowPlaying = id is not null && item.Track.TrackId == id;
+    }
+
+    /// <summary>Feeds the Home dashboard's Recently Played rail (fire-and-forget).</summary>
+    private void RecordRecent()
+    {
+        if (_album is null || string.IsNullOrEmpty(_album.Id)) return;
+        _ = _recents.RecordAsync(new RecentPlay(
+            _album.Id, _album.Title, _album.Artist, _album.Date, _album.Venue,
+            _album.ImagePath, DateTimeOffset.UtcNow));
     }
 
     private int IndexOf(TrackRow track)
