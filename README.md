@@ -7,11 +7,12 @@
   <img src="https://img.shields.io/badge/.NET-10-efe4cf?style=flat-square&labelColor=15120D&logo=dotnet&logoColor=ffb22e" alt=".NET 10">
   <img src="https://img.shields.io/badge/Windows-x64-9a8b6e?style=flat-square&labelColor=15120D&logo=windows&logoColor=efe4cf" alt="Windows x64">
   <img src="https://img.shields.io/badge/MAUI-Blazor%20Hybrid-9a8b6e?style=flat-square&labelColor=15120D" alt="MAUI Blazor Hybrid">
+  <img src="https://img.shields.io/badge/WinUI%203-100%25%20native-ffb22e?style=flat-square&labelColor=15120D" alt="WinUI 3 native">
   <img src="https://img.shields.io/badge/install-winget-ffb22e?style=flat-square&labelColor=15120D" alt="winget">
   <img src="https://img.shields.io/badge/license-MIT-ffb22e?style=flat-square&labelColor=15120D" alt="MIT license">
 </p>
 
-<p align="center"><em>A personal hi-fi front-end for <a href="https://nugs.net">nugs.net</a> live music — fast search, a real queue, keyboard-first. Two heads (web + native), one signal path, no DRM games.</em></p>
+<p align="center"><em>A personal hi-fi front-end for <a href="https://nugs.net">nugs.net</a> live music — fast search, a real queue, keyboard-first. Three heads (web · hybrid · pure native), one identity, no DRM games.</em></p>
 
 ---
 
@@ -26,9 +27,9 @@ no content is downloaded, redistributed, or stripped of DRM. Personal use only.
 
 | | |
 |---|---|
-| **Heads** | Web (Blazor WebAssembly) · Native desktop (.NET MAUI Blazor Hybrid) |
+| **Heads** | Web (Blazor WebAssembly) · Hybrid desktop (.NET MAUI Blazor) · **Pure native desktop (WinUI 3, [`native/`](native/))** |
 | **Runtime** | .NET 10 · `win-x64`, self-contained |
-| **Audio** | FLAC 16/44 preferred, with ALAC / MQA / AAC fallbacks |
+| **Audio** | FLAC 16/44 preferred, with ALAC / MQA / AAC fallbacks · gapless on the WinUI head |
 | **Auth** | nugs password grant, or a pasted `access_token` for SSO accounts |
 | **Install** | per-user installer, no admin (winget manifest shipped per release) |
 
@@ -36,11 +37,13 @@ no content is downloaded, redistributed, or stripped of DRM. Personal use only.
 
 ## ◖ Signal path
 
-Both heads render the **same** Razor UI and reach nugs through the **same** proxy
-in `Nugsdotnet.Core` — the only difference is where that proxy is hosted. The web
-head serves it from ASP.NET Core; the native head spins up an embedded **loopback
-Kestrel** so the WebView's own `<audio>`/`<img>` elements can stream directly
-(a WebView can't pull Range/206 audio through C# `HttpClient`).
+The web and hybrid heads render the **same** Razor UI and reach nugs through the
+**same** proxy in `Nugsdotnet.Core` — the only difference is where that proxy is
+hosted. The web head serves it from ASP.NET Core; the hybrid head spins up an
+embedded **loopback Kestrel** so the WebView's own `<audio>`/`<img>` elements can
+stream directly (a WebView can't pull Range/206 audio through C# `HttpClient`).
+The **WinUI head needs no proxy at all** — native code sets the required headers
+itself and streams straight from the CDN (see *The pure-native head* below).
 
 ```
   ┌───────────────────────────────────────────────────────────────────────────┐
@@ -52,12 +55,14 @@ Kestrel** so the WebView's own `<audio>`/`<img>` elements can stream directly
   └────────────────┬─────────────────────────────────────────┬────────────────┘
                    │                                         │
   ┌────────────────┴────────────────┐       ┌────────────────┴────────────────┐
-  │ WEB head                        │       │ NATIVE head                     │
+  │ WEB head                        │       │ HYBRID head                     │
   │ Blazor WASM                     │       │ MAUI Blazor Hybrid              │
   │ + ASP.NET Core host             │       │ + loopback Kestrel @127.0.0.1:0 │
   └─────────────────────────────────┘       └─────────────────────────────────┘
 
-  both heads render the shared  Nugsdotnet.UI (Razor RCL)  +  Nugsdotnet.Shared (DTOs)
+  both render the shared  Nugsdotnet.UI (Razor RCL)  +  Nugsdotnet.Shared (DTOs)
+
+  (the third head — native/ WinUI 3 — talks to nugs directly, no proxy, no WebView)
 ```
 
 ### Why a proxy at all
@@ -70,12 +75,24 @@ The browser (and the WebView) can't talk to nugs directly for two reasons:
 
 | Project | Role |
 |---|---|
-| `Nugsdotnet.UI` | Razor components — the shared front panel (RCL), used by both heads |
+| `Nugsdotnet.UI` | Razor components — the shared front panel (RCL), used by the web + hybrid heads |
 | `Nugsdotnet.Core` | `NugsClient`, `TokenStore`, and the `/api` proxy endpoints |
 | `Nugsdotnet.Shared` | DTOs |
 | `Nugsdotnet.Server` | ASP.NET Core host for the web head (serves the WASM client + proxy) |
 | `Nugsdotnet.Client` | Blazor WebAssembly client |
-| `Nugsdotnet.App` | .NET MAUI Blazor Hybrid native head + the loopback Kestrel |
+| `Nugsdotnet.App` | .NET MAUI Blazor Hybrid head + the loopback Kestrel |
+| [`native/`](native/) | **Standalone WinUI 3 head** — its own solution and services, zero proxy: audio streams in-process via ranged HTTP reads |
+
+### The pure-native head
+
+The third head, under [`native/`](native/), skips the WebView *and* the proxy
+entirely: a WinUI 3 app feeds `MediaPlayer` from an in-process
+`IRandomAccessStream` that does the ranged CDN reads itself. It carries the
+full RECEIVER '74 identity natively — dashboard home with a recently-played
+rail, gapless playback with one-track look-ahead, a mini-player inspector with
+live stream metrics, media keys/SMTC, and a custom title bar — and is compiled
+by CI on `windows-latest` on every push. See
+[`native/README.md`](native/README.md) for the run guide and roadmap.
 
 ---
 
@@ -144,6 +161,10 @@ inside `<input>` / `<textarea>`.
   fast date-browser per artist.
 - **v0.4** — library/favorites sync, history, fuzzy local search index,
   mini-player, optional offline cache.
+
+The pure-native WinUI head tracks its own phases in
+[`native/README.md`](native/README.md) — currently feature-complete through
+gapless playback, with installer/winget packaging as the remaining item.
 
 ---
 
