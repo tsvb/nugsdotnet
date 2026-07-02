@@ -3,6 +3,11 @@
 **Date:** 2026-06-26
 **Status:** Approved, implemented
 
+> **Historical record.** Written when the repo was dual-head (web + MAUI); those
+> heads were later retired in favour of the native WinUI 3 app, and the README
+> was rewritten around it. The RECEIVER '74 voice, banner, and badge style this
+> spec established carry forward unchanged.
+
 ## Goal
 
 Refresh the repo's "look and feel" so the front door matches the app's

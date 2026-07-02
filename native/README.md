@@ -14,10 +14,10 @@ This head *is* nugsdotnet now.
 
 ## What's in the box
 
-- **RECEIVER '74 skin** — the warm-VFD dark/amber identity shared with the web
-  head, running edge-to-edge under a custom title bar (branded drag strip +
-  faceplate-coloured caption buttons). Big Shoulders / Hanken Grotesk / DM Mono
-  brand fonts are bundled.
+- **RECEIVER '74 skin** — the warm-VFD dark/amber identity (inherited from the
+  retired web head, now native through and through), running edge-to-edge under
+  a custom title bar (branded drag strip + faceplate-coloured caption buttons).
+  Big Shoulders / Hanken Grotesk / DM Mono brand fonts are bundled.
 - **Home dashboard** — time-of-day greeting, a **Recently Played** art-card
   rail (persisted locally, capped at 12), and a filterable faceplate-chip
   artist grid with live count.
@@ -110,20 +110,18 @@ in CI (`.github/workflows/native.yml`) alongside a `windows-latest` job that
 compiles the WinUI head — the XAML compiler is Windows-only, so that job is the
 compile gate for UI changes.
 
-## Extract into its own repository
+## Repository layout note
 
-The `native/` subtree is fully self-contained. To lift it into a standalone repo
-with its own history:
+Since the web/MAUI heads were retired, this subtree is the repo's only code —
+it stays under `native/` mainly so pre-retirement history reads cleanly. It is
+fully self-contained: nothing here references anything outside the subtree, so
+hoisting it to the repo root later is a plain `git mv` (plus path updates in
+`.github/workflows/native.yml` and the READMEs), and extracting it into a
+fresh repo with subtree history remains a one-liner:
 
 ```bash
-# from the parent repo root
 git subtree split --prefix=native -b native-only
-# in a fresh empty repo:
-git pull /path/to/this/repo native-only
 ```
-
-(Or `git filter-repo --path native/ --path-rename native/:` for a full rewrite.)
-Nothing in `native/` references the parent projects, so it builds unchanged once moved.
 
 ## Roadmap
 

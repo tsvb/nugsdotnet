@@ -3,6 +3,11 @@
 **Date:** 2026-06-26
 **Status:** Approved, implemented
 
+> **Historical record.** This spec dates from the web/MAUI era; the `src/` and
+> `packaging/` paths it references were retired with those heads and now live
+> in git history (`v0.2.1`). The icon it defines survives as the native app's
+> `native/Nugsdotnet.Native/Assets/nugsdotnet.ico` and the repo banner art.
+
 ## Goal
 
 Replace the stock MAUI template art (a `#512BD4` purple square + white ".NET"
