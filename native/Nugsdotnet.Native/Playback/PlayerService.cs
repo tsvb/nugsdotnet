@@ -8,14 +8,20 @@ using Nugsdotnet.Native.Core;
 namespace Nugsdotnet.Native.Playback;
 
 /// <summary>
-/// A real play queue over a single <see cref="MediaPlayer"/>. Each track's CDN
-/// stream is resolved on demand (probe → <see cref="HttpAudioStream"/>) when it
-/// becomes current, and the queue advances on MediaEnded. Phase 2 trades true
-/// gapless (a MediaPlaybackList look-ahead, deferred) for a simple, reliable
-/// resolve-on-advance model.
+/// A real play queue over a single <see cref="MediaPlayer"/> — now gapless.
+/// The current track plays from a <see cref="MediaPlaybackList"/> while the
+/// next track's CDN stream resolves in the background and is appended, so
+/// Media Foundation pre-rolls it and a set flows track-into-track. Tracks are
+/// still resolved lazily (one ahead, not the whole queue): signed CDN URLs
+/// age, and probing every tier for 30 tracks up front would hammer the API.
 ///
-/// No UI thread affinity: state is polled by the transport on a UI timer, and
-/// MediaPlayer accepts Source/Play from any thread.
+/// If the look-ahead hasn't landed when a track ends (slow resolve, dead
+/// stream), MediaEnded falls back to the old resolve-on-advance path — a gap,
+/// but never a stall.
+///
+/// No UI thread affinity: state is polled by the transport on a UI timer.
+/// List/queue bookkeeping is guarded by <see cref="_gate"/> because
+/// CurrentItemChanged and the SMTC commands arrive on media threads.
 /// </summary>
 public sealed class PlayerService
 {
@@ -24,10 +30,17 @@ public sealed class PlayerService
     private readonly NugsAuth _auth;
     private readonly MediaPlayer _player;
 
+    private readonly object _gate = new();
     private readonly List<NowPlaying> _queue = new();
+    private readonly Dictionary<MediaPlaybackItem, ItemInfo> _items = new();
+    private MediaPlaybackList? _list;
     private int _index = -1;
-    private long _loadToken;   // only the newest load may touch the player
-    private volatile bool _resolving;
+    private long _loadToken;          // only the newest rebuild may commit
+    private volatile bool _resolving; // a rebuild is resolving the *current* track
+    private bool _lookahead;          // a next-track resolve is already in flight
+
+    /// <summary>What a playback-list item corresponds to: queue slot + resolved stream.</summary>
+    private sealed record ItemInfo(int QueueIndex, StreamPick Pick, HttpAudioStream Stream);
 
     public PlayerService(HttpClient http, NugsStreamResolver resolver, NugsAuth auth)
     {
@@ -36,25 +49,32 @@ public sealed class PlayerService
         _auth = auth;
         _player = new MediaPlayer { AudioCategory = MediaPlayerAudioCategory.Media };
 
-        // System Media Transport Controls: media keys + the system flyout. With a
-        // raw (non-playlist) Source the next/prev buttons need explicit wiring.
+        // System Media Transport Controls: media keys + the system flyout. Our
+        // handlers keep queue bookkeeping in charge (Handled suppresses the
+        // list's own default next/prev).
         _player.CommandManager.IsEnabled = true;
         _player.CommandManager.NextBehavior.EnablingRule = MediaCommandEnablingRule.Always;
         _player.CommandManager.PreviousBehavior.EnablingRule = MediaCommandEnablingRule.Always;
         _player.CommandManager.NextReceived += (_, e) => { Next(); e.Handled = true; };
         _player.CommandManager.PreviousReceived += (_, e) => { Previous(); e.Handled = true; };
-        _player.MediaEnded += (_, _) => OnMediaEnded();
+
+        // Fires when the *list* is exhausted — i.e. the look-ahead never landed.
+        _player.MediaEnded += (_, _) => OnListEnded();
     }
 
-    public NowPlaying? Current => _index >= 0 && _index < _queue.Count ? _queue[_index] : null;
-    public bool HasNext => _index >= 0 && _index < _queue.Count - 1;
-    public bool HasPrevious => _index > 0;
+    public NowPlaying? Current
+    {
+        get { lock (_gate) return _index >= 0 && _index < _queue.Count ? _queue[_index] : null; }
+    }
+
+    public bool HasNext { get { lock (_gate) return _index >= 0 && _index < _queue.Count - 1; } }
+    public bool HasPrevious { get { lock (_gate) return _index > 0; } }
     public bool IsPlaying => _player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing;
     public TimeSpan Duration => _player.PlaybackSession.NaturalDuration;
 
     /// <summary>The queue as the dashboard sees it. Reads only — mutate via Play/Enqueue/PlayNext.</summary>
-    public IReadOnlyList<NowPlaying> Queue => _queue;
-    public int CurrentIndex => _index;
+    public IReadOnlyList<NowPlaying> Queue { get { lock (_gate) return _queue.ToArray(); } }
+    public int CurrentIndex { get { lock (_gate) return _index; } }
 
     /// <summary>Bumped on every queue/index mutation — lets poll-based UI rebuild only on change.</summary>
     public int QueueVersion { get; private set; }
@@ -66,7 +86,7 @@ public sealed class PlayerService
     /// (total size + I/O counters). Null until a track is loaded.</summary>
     public HttpAudioStream? CurrentStream { get; private set; }
 
-    /// <summary>True while resolving a track or while the pipeline reports Opening/Buffering.</summary>
+    /// <summary>True while resolving the current track or while the pipeline reports Opening/Buffering.</summary>
     public bool IsBuffering =>
         _resolving || _player.PlaybackSession.PlaybackState
             is MediaPlaybackState.Opening or MediaPlaybackState.Buffering;
@@ -96,64 +116,84 @@ public sealed class PlayerService
     public void Play(IReadOnlyList<NowPlaying> tracks, int startIndex)
     {
         if (tracks.Count == 0) return;
-        _queue.Clear();
-        _queue.AddRange(tracks);
-        _index = Math.Clamp(startIndex, 0, _queue.Count - 1);
-        QueueVersion++;
-        _ = LoadCurrentAsync();
+        int start;
+        lock (_gate)
+        {
+            _queue.Clear();
+            _queue.AddRange(tracks);
+            start = _index = Math.Clamp(startIndex, 0, _queue.Count - 1);
+            QueueVersion++;
+        }
+        _ = RebuildAtAsync(start);
     }
 
     /// <summary>Append tracks; start playing them if nothing is playing.</summary>
     public void Enqueue(IReadOnlyList<NowPlaying> tracks)
     {
         if (tracks.Count == 0) return;
-        var startHere = Current is null;
-        var firstNew = _queue.Count;
-        _queue.AddRange(tracks);
-        QueueVersion++;
-        if (startHere)
+        bool startHere;
+        int start;
+        lock (_gate)
         {
-            _index = firstNew;
-            _ = LoadCurrentAsync();
+            startHere = _index < 0 || _index >= _queue.Count;
+            start = _queue.Count;
+            _queue.AddRange(tracks);
+            if (startHere) _index = start;
+            QueueVersion++;
         }
+        if (startHere) _ = RebuildAtAsync(start);
+        else _ = EnsureLookaheadAsync();   // the current track may have been the last
     }
 
     /// <summary>Insert tracks right after the current one (or start them if idle).</summary>
     public void PlayNext(IReadOnlyList<NowPlaying> tracks)
     {
         if (tracks.Count == 0) return;
-        if (Current is null)
+        var inserted = false;
+        lock (_gate)
         {
-            Play(tracks, 0);
-            return;
+            if (_index >= 0 && _index < _queue.Count)
+            {
+                _queue.InsertRange(_index + 1, tracks);
+                QueueVersion++;
+                DropLookaheadLocked();   // an appended next-item now points at the wrong slot
+                inserted = true;
+            }
         }
-        _queue.InsertRange(_index + 1, tracks);
-        QueueVersion++;
+        if (inserted) _ = EnsureLookaheadAsync();
+        else Play(tracks, 0);
     }
 
     /// <summary>Jump straight to a queue position — the dashboard's up-next list.</summary>
     public void PlayAt(int index)
     {
-        if (index < 0 || index >= _queue.Count || index == _index) return;
-        _index = index;
-        QueueVersion++;
-        _ = LoadCurrentAsync();
+        lock (_gate)
+        {
+            if (index < 0 || index >= _queue.Count || index == _index) return;
+        }
+        JumpTo(index);
     }
 
     public void Next()
     {
-        if (!HasNext) return;
-        _index++;
-        QueueVersion++;
-        _ = LoadCurrentAsync();
+        int target;
+        lock (_gate)
+        {
+            if (_index < 0 || _index >= _queue.Count - 1) return;
+            target = _index + 1;
+        }
+        JumpTo(target);
     }
 
     public void Previous()
     {
-        if (!HasPrevious) return;
-        _index--;
-        QueueVersion++;
-        _ = LoadCurrentAsync();
+        int target;
+        lock (_gate)
+        {
+            if (_index <= 0) return;
+            target = _index - 1;
+        }
+        JumpTo(target);
     }
 
     public void TogglePlayPause()
@@ -179,20 +219,87 @@ public sealed class PlayerService
         session.Position = target;
     }
 
-    private void OnMediaEnded()
+    /// <summary>
+    /// Move to a queue slot. Fast path: the slot's item is already in the
+    /// playback list (the pre-rolled next, or an already-played previous) —
+    /// MoveTo is instant and gapless. Otherwise resolve-and-rebuild.
+    /// </summary>
+    private void JumpTo(int target)
     {
-        if (HasNext)
+        MediaPlaybackList? list = null;
+        var listPos = -1;
+        lock (_gate)
         {
-            _index++;
+            if (target < 0 || target >= _queue.Count) return;
+            if (_list is { } l)
+            {
+                for (var k = 0; k < l.Items.Count; k++)
+                {
+                    if (_items.TryGetValue(l.Items[k], out var info) && info.QueueIndex == target)
+                    {
+                        list = l;
+                        listPos = k;
+                        break;
+                    }
+                }
+            }
+            _index = target;
             QueueVersion++;
-            _ = LoadCurrentAsync();
         }
+        if (list is not null)
+        {
+            list.MoveTo((uint)listPos);   // CurrentItemChanged confirms pick/stream
+            _player.Play();
+            return;
+        }
+        _ = RebuildAtAsync(target);
     }
 
-    private async Task LoadCurrentAsync()
+    /// <summary>The list advanced (pre-rolled auto-advance, or our MoveTo).</summary>
+    private void OnCurrentItemChanged(
+        MediaPlaybackList sender, CurrentMediaPlaybackItemChangedEventArgs args)
     {
-        var token = ++_loadToken;
-        var track = Current;
+        if (args.NewItem is null) return;
+        lock (_gate)
+        {
+            if (!ReferenceEquals(sender, _list)) return;   // a stale, replaced list
+            if (!_items.TryGetValue(args.NewItem, out var info)) return;
+            _index = info.QueueIndex;
+            CurrentPick = info.Pick;
+            CurrentStream = info.Stream;
+            QueueVersion++;
+        }
+        Status = null;
+        _ = EnsureLookaheadAsync();
+    }
+
+    /// <summary>List exhausted — the look-ahead never landed. Fall back to
+    /// resolve-on-advance so playback continues (with a gap) rather than stalls.</summary>
+    private void OnListEnded()
+    {
+        var next = -1;
+        lock (_gate)
+        {
+            if (_index >= 0 && _index < _queue.Count - 1)
+            {
+                next = ++_index;
+                QueueVersion++;
+            }
+        }
+        if (next >= 0) _ = RebuildAtAsync(next);
+    }
+
+    /// <summary>Start a fresh playback list at a queue slot (initial play, or any
+    /// jump whose target wasn't pre-rolled). Skips unplayable tracks forward.</summary>
+    private async Task RebuildAtAsync(int startIndex)
+    {
+        long token;
+        NowPlaying? track;
+        lock (_gate)
+        {
+            token = ++_loadToken;
+            track = startIndex >= 0 && startIndex < _queue.Count ? _queue[startIndex] : null;
+        }
         if (track is null)
         {
             _player.Pause();
@@ -204,37 +311,139 @@ public sealed class PlayerService
             CurrentPick = null;
             CurrentStream = null;
             Status = $"Resolving “{track.Title}”…";
-            var session = await _auth.GetSessionAsync();
-            var pick = await _resolver.ResolveBestStreamAsync(track.TrackId, session);
-            if (token != _loadToken) return;   // superseded by a newer load
 
-            if (pick is null || pick.Format == AudioFormat.Hls)
+            var resolved = await ResolvePlayableAsync(track);
+            lock (_gate) { if (_loadToken != token) return; }
+
+            if (resolved is null)
             {
-                Status = pick is null ? "No playable stream — skipping." : "HLS track — skipping.";
-                if (HasNext) { _index++; QueueVersion++; _ = LoadCurrentAsync(); }   // auto-skip unplayable
+                Status = "No playable stream — skipping.";
+                var next = -1;
+                lock (_gate)
+                {
+                    if (_loadToken == token && startIndex < _queue.Count - 1)
+                    {
+                        next = _index = startIndex + 1;
+                        QueueVersion++;
+                    }
+                }
+                if (next >= 0) _ = RebuildAtAsync(next);
                 return;
             }
 
-            var stream = await HttpAudioStream.CreateAsync(
-                _http, pick.Url, NugsConstants.PlayerReferer, NugsConstants.MobileUserAgent);
-            if (token != _loadToken) return;
+            var (pick, stream) = resolved.Value;
+            var item = MakeItem(track, pick, stream);
+            var list = new MediaPlaybackList();
+            list.CurrentItemChanged += OnCurrentItemChanged;
 
-            var source = MediaSource.CreateFromStream(stream, NugsStreamResolver.GetMimeType(pick.Format));
-            _player.Source = WithDisplayProperties(source, track);
+            lock (_gate)
+            {
+                if (_loadToken != token) return;   // superseded — abandon quietly
+                if (_list is { } old) old.CurrentItemChanged -= OnCurrentItemChanged;
+                _items.Clear();
+                _list = list;
+                list.Items.Add(item);
+                _items[item] = new ItemInfo(startIndex, pick, stream);
+                _index = startIndex;
+                CurrentPick = pick;
+                CurrentStream = stream;
+                QueueVersion++;
+            }
+            _player.Source = list;
             _player.Play();
-            CurrentPick = pick;
-            CurrentStream = stream;
             Status = null;
+            _ = EnsureLookaheadAsync();
         }
         catch (Exception ex)
         {
-            if (token != _loadToken) return;
+            lock (_gate) { if (_loadToken != token) return; }
             Status = ex.Message;   // network/probe error — stop here, user can retry/skip
         }
         finally
         {
-            if (token == _loadToken) _resolving = false;
+            lock (_gate) { if (_loadToken == token) _resolving = false; }
         }
+    }
+
+    /// <summary>
+    /// Resolve queue slot current+1 in the background and append it to the live
+    /// list so Media Foundation pre-rolls it (the gapless hand-off). One ahead
+    /// only; best-effort — a miss is covered by the MediaEnded fallback.
+    /// </summary>
+    private async Task EnsureLookaheadAsync()
+    {
+        long token;
+        int nextIndex;
+        NowPlaying next;
+        MediaPlaybackList list;
+        lock (_gate)
+        {
+            if (_lookahead || _list is null) return;
+            nextIndex = _index + 1;
+            if (nextIndex <= 0 || nextIndex >= _queue.Count) return;
+            foreach (var info in _items.Values)
+                if (info.QueueIndex == nextIndex) return;   // already pre-rolled
+            next = _queue[nextIndex];
+            list = _list;
+            token = _loadToken;
+            _lookahead = true;
+        }
+        try
+        {
+            var resolved = await ResolvePlayableAsync(next);
+            if (resolved is null) return;   // unplayable — MediaEnded fallback will skip it
+
+            var (pick, stream) = resolved.Value;
+            var item = MakeItem(next, pick, stream);
+            lock (_gate)
+            {
+                // Only append if the world hasn't moved: same list, same load
+                // generation, and the slot is still "current + 1".
+                if (_loadToken != token || !ReferenceEquals(list, _list)) return;
+                if (nextIndex != _index + 1) return;
+                _items[item] = new ItemInfo(nextIndex, pick, stream);
+                list.Items.Add(item);
+            }
+        }
+        catch
+        {
+            // Best-effort: a failed look-ahead just means a gapped advance later.
+        }
+        finally
+        {
+            lock (_gate) { _lookahead = false; }
+        }
+    }
+
+    /// <summary>Remove pre-rolled items past the current one (queue changed under them).</summary>
+    private void DropLookaheadLocked()
+    {
+        if (_list is null) return;
+        for (var k = _list.Items.Count - 1; k >= 0; k--)
+        {
+            var item = _list.Items[k];
+            if (_items.TryGetValue(item, out var info) && info.QueueIndex > _index)
+            {
+                _list.Items.RemoveAt(k);
+                _items.Remove(item);
+            }
+        }
+    }
+
+    private async Task<(StreamPick Pick, HttpAudioStream Stream)?> ResolvePlayableAsync(NowPlaying track)
+    {
+        var session = await _auth.GetSessionAsync();
+        var pick = await _resolver.ResolveBestStreamAsync(track.TrackId, session);
+        if (pick is null || pick.Format == AudioFormat.Hls) return null;   // HLS: still unsupported here
+        var stream = await HttpAudioStream.CreateAsync(
+            _http, pick.Url, NugsConstants.PlayerReferer, NugsConstants.MobileUserAgent);
+        return (pick, stream);
+    }
+
+    private static MediaPlaybackItem MakeItem(NowPlaying track, StreamPick pick, HttpAudioStream stream)
+    {
+        var source = MediaSource.CreateFromStream(stream, NugsStreamResolver.GetMimeType(pick.Format));
+        return WithDisplayProperties(source, track);
     }
 
     /// <summary>

@@ -89,8 +89,9 @@ Nothing in `native/` references the parent projects, so it builds unchanged once
   shortcuts (KeyboardAccelerators) and System Media Transport Controls with
   full metadata; image loading (direct CDN GET + in-memory cache); RECEIVER '74
   re-skin, custom title bar, Home dashboard with recently-played rail.
-- **Phase 3** — stream-quality dashboard **(done — the inspector's STREAM
-  QUALITY section)**; true gapless via `MediaPlaybackList`; Inno Setup
+- **Phase 3** — stream-quality dashboard **(done — the inspector's SIGNAL
+  PATH section)**; true gapless via `MediaPlaybackList` **(done — one-track
+  look-ahead pre-roll with a resolve-on-advance fallback)**; Inno Setup
   installer + winget manifest mirroring the parent `packaging/` setup.
 
 Not affiliated with nugs.net. For personal use against your own subscription.
