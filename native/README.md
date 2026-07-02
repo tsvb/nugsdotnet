@@ -135,11 +135,11 @@ git subtree split --prefix=native -b native-only
   keyboard shortcuts and System Media Transport Controls with full metadata;
   image loading (direct CDN GET + in-memory cache); the RECEIVER '74 re-skin,
   custom title bar, and Home dashboard with the recently-played rail.
-- **Phase 3 (mostly done)** — stream-quality dashboard ✓ (the inspector's
-  SIGNAL PATH section); true gapless via `MediaPlaybackList` ✓ (one-track
-  look-ahead pre-roll, resolve-on-advance fallback); resume-on-launch ✓;
-  HLS playback via adaptive source ✓; remembered window/volume state ✓.
-  **Remaining:** Inno Setup installer + winget manifest (the retired MAUI
-  head's packaging, in git history at `v0.2.1`, is the template).
+- **Phase 3 (done)** — stream-quality dashboard ✓ (the inspector's SIGNAL
+  PATH section); true gapless via `MediaPlaybackList` ✓ (one-track look-ahead
+  pre-roll, resolve-on-advance fallback); resume-on-launch ✓; HLS playback
+  via adaptive source ✓; remembered window/volume state ✓; Inno Setup
+  installer + winget manifest ✓ (tag-triggered — see
+  [`docs/RELEASING.md`](../docs/RELEASING.md)).
 
 Not affiliated with nugs.net. For personal use against your own subscription.

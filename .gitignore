@@ -7,6 +7,9 @@ obj/
 .vscode/
 .idea/
 
+# --- packaging build output ------------------------------------------------
+packaging/Output/
+
 # --- local junk -----------------------------------------------------------
 .env
 .env.local

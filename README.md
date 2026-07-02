@@ -59,7 +59,22 @@ loopback server, done in-process.
 
 ---
 
-## ◖ Power on
+## ◖ Off the shelf — install it
+
+Grab the latest `nugsdotnet-<version>-x64-setup.exe` from
+[Releases](../../releases) — a per-user install, no admin, fully
+self-contained (no .NET or runtime installs). Each release also carries a
+winget manifest:
+
+```powershell
+winget install --manifest .\nugsdotnet-<version>-winget-manifests
+```
+
+Cut-a-release details live in [`docs/RELEASING.md`](docs/RELEASING.md).
+
+---
+
+## ◖ Power on — run from source
 
 Requires the **.NET 10 SDK** on Windows. No MAUI workload, no MSIX — the
 Windows App SDK arrives via NuGet.
@@ -93,10 +108,13 @@ Media keys and the Windows media flyout work too (SMTC with full metadata).
 ## ◖ On the dial — roadmap
 
 Phases 1–3 are landed: player, browse, dashboard, gapless, SMTC,
-resume-on-launch (queue + position primed on relaunch), HLS playback, and
-remembered window/volume state. Remaining:
+resume-on-launch (queue + position primed on relaunch), HLS playback,
+remembered window/volume state, and tag-triggered installer + winget
+distribution. Next up, as the itch strikes:
 
-- **Installer + winget** — per-user Inno Setup + manifest for the native app.
+- **Code signing** — Azure Trusted Signing to retire the SmartScreen prompt
+  (hook is already in the release workflow).
+- **Favorites / library sync** — the stash, natively.
 
 ---
 
