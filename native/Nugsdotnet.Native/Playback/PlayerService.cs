@@ -1,6 +1,7 @@
 using Windows.Media;
 using Windows.Media.Core;
 using Windows.Media.Playback;
+using Windows.Media.Streaming.Adaptive;
 using Windows.Storage.Streams;
 using Nugsdotnet.Native.Audio;
 using Nugsdotnet.Native.Core;
@@ -17,7 +18,10 @@ namespace Nugsdotnet.Native.Playback;
 ///
 /// If the look-ahead hasn't landed when a track ends (slow resolve, dead
 /// stream), MediaEnded falls back to the old resolve-on-advance path — a gap,
-/// but never a stall.
+/// but never a stall. HLS-only tracks play via an adaptive source; anything
+/// else streams through <see cref="HttpAudioStream"/>. The queue, position,
+/// and listening setup persist to <see cref="PlaybackStateStore"/> for
+/// resume-on-launch.
 ///
 /// No UI thread affinity: state is polled by the transport on a UI timer.
 /// List/queue bookkeeping is guarded by <see cref="_gate"/> because
@@ -28,7 +32,9 @@ public sealed class PlayerService
     private readonly HttpClient _http;
     private readonly NugsStreamResolver _resolver;
     private readonly NugsAuth _auth;
+    private readonly PlaybackStateStore _state;
     private readonly MediaPlayer _player;
+    private readonly Timer _saveTimer;
 
     private readonly object _gate = new();
     private readonly List<NowPlaying> _queue = new();
@@ -38,15 +44,23 @@ public sealed class PlayerService
     private long _loadToken;          // only the newest rebuild may commit
     private volatile bool _resolving; // a rebuild is resolving the *current* track
     private bool _lookahead;          // a next-track resolve is already in flight
+    private TimeSpan? _pendingSeek;   // resume point, applied on the next MediaOpened
+    private bool _restored;           // RestoreAsync runs at most once
+    private Windows.Web.Http.HttpClient? _hlsHttp;
 
-    /// <summary>What a playback-list item corresponds to: queue slot + resolved stream.</summary>
-    private sealed record ItemInfo(int QueueIndex, StreamPick Pick, HttpAudioStream Stream);
+    /// <summary>What a playback-list item corresponds to: queue slot + resolved
+    /// stream. Stream is null for HLS (adaptive source — no byte stream to meter).</summary>
+    private sealed record ItemInfo(int QueueIndex, StreamPick Pick, HttpAudioStream? Stream);
 
-    public PlayerService(HttpClient http, NugsStreamResolver resolver, NugsAuth auth)
+    /// <summary>A resolved, playable source for one track.</summary>
+    private sealed record Resolved(StreamPick Pick, MediaSource Source, HttpAudioStream? Stream);
+
+    public PlayerService(HttpClient http, NugsStreamResolver resolver, NugsAuth auth, PlaybackStateStore state)
     {
         _http = http;
         _resolver = resolver;
         _auth = auth;
+        _state = state;
         _player = new MediaPlayer { AudioCategory = MediaPlayerAudioCategory.Media };
 
         // System Media Transport Controls: media keys + the system flyout. Our
@@ -60,6 +74,23 @@ public sealed class PlayerService
 
         // Fires when the *list* is exhausted — i.e. the look-ahead never landed.
         _player.MediaEnded += (_, _) => OnListEnded();
+
+        // Resume-on-launch: the saved position is applied once the restored
+        // track's media actually opens (seeking before open is a no-op).
+        _player.MediaOpened += (_, _) =>
+        {
+            TimeSpan? seek;
+            lock (_gate)
+            {
+                seek = _pendingSeek;
+                _pendingSeek = null;
+            }
+            if (seek is { } t) _player.PlaybackSession.Position = t;
+        };
+
+        // Position snapshots while playing, so a crash loses at most ~10s.
+        _saveTimer = new Timer(_ => { if (IsPlaying) SaveSoon(); },
+            null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
     }
 
     public NowPlaying? Current
@@ -122,8 +153,10 @@ public sealed class PlayerService
             _queue.Clear();
             _queue.AddRange(tracks);
             start = _index = Math.Clamp(startIndex, 0, _queue.Count - 1);
+            _pendingSeek = null;   // explicit navigation cancels a pending resume point
             QueueVersion++;
         }
+        SaveSoon();
         _ = RebuildAtAsync(start);
     }
 
@@ -138,9 +171,14 @@ public sealed class PlayerService
             startHere = _index < 0 || _index >= _queue.Count;
             start = _queue.Count;
             _queue.AddRange(tracks);
-            if (startHere) _index = start;
+            if (startHere)
+            {
+                _index = start;
+                _pendingSeek = null;
+            }
             QueueVersion++;
         }
+        SaveSoon();
         if (startHere) _ = RebuildAtAsync(start);
         else _ = EnsureLookaheadAsync();   // the current track may have been the last
     }
@@ -160,8 +198,15 @@ public sealed class PlayerService
                 inserted = true;
             }
         }
-        if (inserted) _ = EnsureLookaheadAsync();
-        else Play(tracks, 0);
+        if (inserted)
+        {
+            SaveSoon();
+            _ = EnsureLookaheadAsync();
+        }
+        else
+        {
+            Play(tracks, 0);
+        }
     }
 
     /// <summary>Jump straight to a queue position — the dashboard's up-next list.</summary>
@@ -198,6 +243,20 @@ public sealed class PlayerService
 
     public void TogglePlayPause()
     {
+        // Resume entry: a restored queue is primed but has no source yet — the
+        // first play kicks off the resolve (the pending seek lands on open).
+        bool primed;
+        int index;
+        lock (_gate)
+        {
+            primed = _list is null && _index >= 0 && _index < _queue.Count;
+            index = _index;
+        }
+        if (primed)
+        {
+            _ = RebuildAtAsync(index);
+            return;
+        }
         if (IsPlaying) _player.Pause();
         else _player.Play();
     }
@@ -244,8 +303,10 @@ public sealed class PlayerService
                 }
             }
             _index = target;
+            _pendingSeek = null;   // explicit navigation cancels a pending resume point
             QueueVersion++;
         }
+        SaveSoon();
         if (list is not null)
         {
             list.MoveTo((uint)listPos);   // CurrentItemChanged confirms pick/stream
@@ -270,6 +331,7 @@ public sealed class PlayerService
             QueueVersion++;
         }
         Status = null;
+        SaveSoon();
         _ = EnsureLookaheadAsync();
     }
 
@@ -280,6 +342,7 @@ public sealed class PlayerService
         var next = -1;
         lock (_gate)
         {
+            _pendingSeek = null;
             if (_index >= 0 && _index < _queue.Count - 1)
             {
                 next = ++_index;
@@ -287,6 +350,59 @@ public sealed class PlayerService
             }
         }
         if (next >= 0) _ = RebuildAtAsync(next);
+    }
+
+    // ---- resume-on-launch ---------------------------------------------------
+
+    /// <summary>
+    /// Loads the previous session's queue primed-but-paused: the transport shows
+    /// the track and the first play resolves it and lands on the saved position.
+    /// Runs at most once; a queue the user already started wins over the snapshot.
+    /// </summary>
+    public async Task RestoreAsync()
+    {
+        if (_restored) return;
+        _restored = true;
+        var snap = await _state.LoadAsync();
+        if (snap is null) return;
+        lock (_gate)
+        {
+            if (_queue.Count > 0) return;
+            _queue.AddRange(snap.Queue);
+            _index = snap.Index;
+            _pendingSeek = snap.PositionSeconds > 1
+                ? TimeSpan.FromSeconds(snap.PositionSeconds)
+                : null;
+            QueueVersion++;
+        }
+        Volume = snap.Volume;
+        IsMuted = snap.IsMuted;
+        Status = $"Ready to resume “{Current?.Title}” — press play.";
+    }
+
+    /// <summary>Synchronous save for app shutdown (the window's Closed handler).</summary>
+    public void SaveNow()
+    {
+        if (Snapshot() is { } snap) _state.Save(snap);
+    }
+
+    private void SaveSoon()
+    {
+        if (Snapshot() is { } snap) _ = _state.SaveAsync(snap);
+    }
+
+    private PlaybackSnapshot? Snapshot()
+    {
+        NowPlaying[] queue;
+        int index;
+        lock (_gate)
+        {
+            if (_index < 0 || _index >= _queue.Count) return null;
+            queue = _queue.ToArray();
+            index = _index;
+        }
+        return new PlaybackSnapshot(
+            queue, index, _player.PlaybackSession.Position.TotalSeconds, Volume, IsMuted);
     }
 
     /// <summary>Start a fresh playback list at a queue slot (initial play, or any
@@ -331,8 +447,7 @@ public sealed class PlayerService
                 return;
             }
 
-            var (pick, stream) = resolved.Value;
-            var item = MakeItem(track, pick, stream);
+            var item = WithDisplayProperties(resolved.Source, track);
             var list = new MediaPlaybackList();
             list.CurrentItemChanged += OnCurrentItemChanged;
 
@@ -343,10 +458,10 @@ public sealed class PlayerService
                 _items.Clear();
                 _list = list;
                 list.Items.Add(item);
-                _items[item] = new ItemInfo(startIndex, pick, stream);
+                _items[item] = new ItemInfo(startIndex, resolved.Pick, resolved.Stream);
                 _index = startIndex;
-                CurrentPick = pick;
-                CurrentStream = stream;
+                CurrentPick = resolved.Pick;
+                CurrentStream = resolved.Stream;
                 QueueVersion++;
             }
             _player.Source = list;
@@ -393,15 +508,14 @@ public sealed class PlayerService
             var resolved = await ResolvePlayableAsync(next);
             if (resolved is null) return;   // unplayable — MediaEnded fallback will skip it
 
-            var (pick, stream) = resolved.Value;
-            var item = MakeItem(next, pick, stream);
+            var item = WithDisplayProperties(resolved.Source, next);
             lock (_gate)
             {
                 // Only append if the world hasn't moved: same list, same load
                 // generation, and the slot is still "current + 1".
                 if (_loadToken != token || !ReferenceEquals(list, _list)) return;
                 if (nextIndex != _index + 1) return;
-                _items[item] = new ItemInfo(nextIndex, pick, stream);
+                _items[item] = new ItemInfo(nextIndex, resolved.Pick, resolved.Stream);
                 list.Items.Add(item);
             }
         }
@@ -430,20 +544,39 @@ public sealed class PlayerService
         }
     }
 
-    private async Task<(StreamPick Pick, HttpAudioStream Stream)?> ResolvePlayableAsync(NowPlaying track)
+    private async Task<Resolved?> ResolvePlayableAsync(NowPlaying track)
     {
         var session = await _auth.GetSessionAsync();
         var pick = await _resolver.ResolveBestStreamAsync(track.TrackId, session);
-        if (pick is null || pick.Format == AudioFormat.Hls) return null;   // HLS: still unsupported here
+        if (pick is null) return null;
+
+        if (pick.Format == AudioFormat.Hls)
+        {
+            // HLS-only tracks play through an adaptive source. The playlist and
+            // segment fetches carry the CDN's required Referer/UA via a
+            // header-carrying WinRT HttpClient (System.Net.Http can't be handed
+            // to AdaptiveMediaSource).
+            if (!Uri.TryCreate(pick.Url, UriKind.Absolute, out var uri)) return null;
+            var created = await AdaptiveMediaSource.CreateFromUriAsync(uri, HlsHttp);
+            if (created.Status != AdaptiveMediaSourceCreationStatus.Success) return null;
+            return new Resolved(
+                pick, MediaSource.CreateFromAdaptiveMediaSource(created.MediaSource), null);
+        }
+
         var stream = await HttpAudioStream.CreateAsync(
             _http, pick.Url, NugsConstants.PlayerReferer, NugsConstants.MobileUserAgent);
-        return (pick, stream);
+        return new Resolved(
+            pick, MediaSource.CreateFromStream(stream, NugsStreamResolver.GetMimeType(pick.Format)), stream);
     }
 
-    private static MediaPlaybackItem MakeItem(NowPlaying track, StreamPick pick, HttpAudioStream stream)
+    private Windows.Web.Http.HttpClient HlsHttp => _hlsHttp ??= CreateHlsClient();
+
+    private static Windows.Web.Http.HttpClient CreateHlsClient()
     {
-        var source = MediaSource.CreateFromStream(stream, NugsStreamResolver.GetMimeType(pick.Format));
-        return WithDisplayProperties(source, track);
+        var client = new Windows.Web.Http.HttpClient();
+        client.DefaultRequestHeaders.TryAppendWithoutValidation("Referer", NugsConstants.PlayerReferer);
+        client.DefaultRequestHeaders.TryAppendWithoutValidation("User-Agent", NugsConstants.MobileUserAgent);
+        return client;
     }
 
     /// <summary>

@@ -27,7 +27,7 @@ no content is downloaded, redistributed, or stripped of DRM. Personal use only.
 |---|---|
 | **App** | WinUI 3 (Windows App SDK 2.x) · unpackaged, self-contained |
 | **Runtime** | .NET 10 · Windows 10 2004+ / Windows 11, x64 or arm64 |
-| **Audio** | FLAC 16/44 preferred, ALAC / MQA / AAC fallbacks · **gapless** via `MediaPlaybackList` look-ahead |
+| **Audio** | FLAC 16/44 preferred, ALAC / MQA / AAC fallbacks, HLS adaptive · **gapless** via `MediaPlaybackList` look-ahead |
 | **Auth** | nugs password grant · tokens DPAPI-encrypted at rest |
 | **Identity** | RECEIVER '74 — warm-VFD dark/amber, custom title bar, brand type |
 
@@ -92,11 +92,11 @@ Media keys and the Windows media flyout work too (SMTC with full metadata).
 
 ## ◖ On the dial — roadmap
 
-Phases 1–3 are landed (player, browse, dashboard, gapless, SMTC). Remaining:
+Phases 1–3 are landed: player, browse, dashboard, gapless, SMTC,
+resume-on-launch (queue + position primed on relaunch), HLS playback, and
+remembered window/volume state. Remaining:
 
 - **Installer + winget** — per-user Inno Setup + manifest for the native app.
-- **Ideas** — resume-on-launch, HLS playback instead of auto-skip, remembered
-  window/volume state.
 
 ---
 

@@ -25,6 +25,7 @@ public static class FormatInfo
         AudioFormat.Mqa24 => "24-bit (MQA)",
         AudioFormat.S360Ra => "object audio",
         AudioFormat.Aac150 => "lossy 150 kbps",
+        AudioFormat.Hls => "adaptive (AAC)",
         _ => "—",
     };
 

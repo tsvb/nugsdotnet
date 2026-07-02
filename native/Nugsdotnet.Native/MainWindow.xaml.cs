@@ -1,10 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Nugsdotnet.Native.Playback;
 using Nugsdotnet.Native.ViewModels;
 using Nugsdotnet.Native.Views.Pages;
+using Windows.Graphics;
 using Windows.UI;
 
 namespace Nugsdotnet.Native;
@@ -13,6 +15,7 @@ public sealed partial class MainWindow : Window
 {
     private readonly ShellViewModel _shell;
     private readonly PlayerService _player;
+    private bool _restoreDashboard;
 
     public MainWindow()
     {
@@ -24,6 +27,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(TitleBarStrip);
         BrandTitleBar();
+        RestoreWindowState();
 
         _shell = App.Services.GetRequiredService<ShellViewModel>();
         _player = App.Services.GetRequiredService<PlayerService>();
@@ -31,10 +35,38 @@ public sealed partial class MainWindow : Window
         LoginPanel.LoggedIn += async (_, _) =>
         {
             await _shell.InitializeAsync();
+            await _player.RestoreAsync();   // idempotent — first login on this box
             ShowMain();
         };
+        Closed += (_, _) => SaveWindowState();
         ShowLogin();              // show login immediately; the async check may switch to the shell
         _ = InitializeAsync();
+    }
+
+    /// <summary>Reopen where the user left the window, clamped to a visible
+    /// display so a detached monitor can't strand it off-screen.</summary>
+    private void RestoreWindowState()
+    {
+        if (WindowStateStore.TryLoad() is not { } ws) return;
+        _restoreDashboard = ws.DashboardOpen;
+
+        var area = DisplayArea.GetFromPoint(new PointInt32(ws.X, ws.Y), DisplayAreaFallback.Nearest);
+        var work = area.WorkArea;
+        var w = Math.Clamp(ws.Width, 720, work.Width);
+        var h = Math.Clamp(ws.Height, 480, work.Height);
+        var x = Math.Clamp(ws.X, work.X, work.X + work.Width - w);
+        var y = Math.Clamp(ws.Y, work.Y, work.Y + work.Height - h);
+        AppWindow.MoveAndResize(new RectInt32(x, y, w, h));
+    }
+
+    private void SaveWindowState()
+    {
+        var pos = AppWindow.Position;
+        var size = AppWindow.Size;
+        WindowStateStore.Save(new WindowState(
+            pos.X, pos.Y, size.Width, size.Height,
+            Dashboard.Visibility == Visibility.Visible));
+        _player.SaveNow();   // final position snapshot for resume-on-launch
     }
 
     private void BrandTitleBar()
@@ -53,14 +85,26 @@ public sealed partial class MainWindow : Window
     private async Task InitializeAsync()
     {
         await _shell.InitializeAsync();
-        if (_shell.IsLoggedIn) ShowMain();
-        else ShowLogin();
+        if (_shell.IsLoggedIn)
+        {
+            await _player.RestoreAsync();   // resume-on-launch: queue primed, paused
+            ShowMain();
+        }
+        else
+        {
+            ShowLogin();
+        }
     }
 
     private void ShowMain()
     {
         LoginPanel.Visibility = Visibility.Collapsed;
         MainPanel.Visibility = Visibility.Visible;
+        if (_restoreDashboard && Dashboard.Visibility == Visibility.Collapsed)
+        {
+            Dashboard.Visibility = Visibility.Visible;
+            Dashboard.OnShown();
+        }
         if (ContentFrame.Content is null)
             ContentFrame.Navigate(typeof(HomePage));
     }

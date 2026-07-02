@@ -33,7 +33,11 @@ This head *is* nugsdotnet now.
   with click-to-jump.
 - **Gapless playback** — the current track plays from a `MediaPlaybackList`
   while the next resolves in the background and pre-rolls; a `MediaEnded`
-  fallback guarantees a missed look-ahead gaps instead of stalling.
+  fallback guarantees a missed look-ahead gaps instead of stalling. HLS-only
+  tracks play through an adaptive source instead of being skipped.
+- **Session memory** — relaunch and pick up where you stopped: the queue and
+  position come back primed (press play to resume), and window bounds,
+  dashboard state, volume, and mute are remembered.
 - **System integration** — media keys and the Windows media flyout (SMTC) with
   full title/artist/show/art metadata.
 
@@ -133,10 +137,9 @@ git subtree split --prefix=native -b native-only
   custom title bar, and Home dashboard with the recently-played rail.
 - **Phase 3 (mostly done)** — stream-quality dashboard ✓ (the inspector's
   SIGNAL PATH section); true gapless via `MediaPlaybackList` ✓ (one-track
-  look-ahead pre-roll, resolve-on-advance fallback). **Remaining:** Inno Setup
-  installer + winget manifest (the retired MAUI head's packaging, in git
-  history at `v0.2.1`, is the template).
-- **Ideas beyond Phase 3** — resume-on-launch (persist queue + position), HLS
-  playback instead of auto-skip, remembered window/volume state.
+  look-ahead pre-roll, resolve-on-advance fallback); resume-on-launch ✓;
+  HLS playback via adaptive source ✓; remembered window/volume state ✓.
+  **Remaining:** Inno Setup installer + winget manifest (the retired MAUI
+  head's packaging, in git history at `v0.2.1`, is the template).
 
 Not affiliated with nugs.net. For personal use against your own subscription.

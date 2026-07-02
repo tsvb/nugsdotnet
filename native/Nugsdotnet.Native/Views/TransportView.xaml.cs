@@ -30,6 +30,8 @@ public sealed partial class TransportView : UserControl
     };
 
     private bool _scrubbing;
+    private bool _volumeTouched;   // user owns the slider once they move it
+    private bool _syncingVolume;   // programmatic set — don't count as a touch
     private string? _thumbTrackId;
     private string? _badge;
 
@@ -73,6 +75,7 @@ public sealed partial class TransportView : UserControl
         RefreshBadge();
 
         VolumeButton.Content = _player.IsMuted ? MuteGlyph : VolumeGlyph;
+        SyncVolumeSlider();
 
         var dur = _player.Duration.TotalSeconds;
         var pos = _player.Position.TotalSeconds;
@@ -150,9 +153,22 @@ public sealed partial class TransportView : UserControl
         _player.Position = TimeSpan.FromSeconds(PositionSlider.Value);
     }
 
+    /// <summary>Mirrors a restored volume into the slider until the user takes over.</summary>
+    private void SyncVolumeSlider()
+    {
+        if (_volumeTouched) return;
+        var target = _player.Volume * 100.0;
+        if (Math.Abs(VolumeSlider.Value - target) < 0.5) return;
+        _syncingVolume = true;
+        VolumeSlider.Value = target;
+        _syncingVolume = false;
+    }
+
     private void OnVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         if (_player is null) return;   // fires during XAML init before _player is set
+        if (_syncingVolume) return;    // programmatic sync, not a user change
+        _volumeTouched = true;
         _player.Volume = e.NewValue / 100.0;
     }
 
