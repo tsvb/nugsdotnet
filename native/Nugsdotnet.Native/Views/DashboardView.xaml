@@ -5,110 +5,181 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:views="using:Nugsdotnet.Native.Views">
 
-    <!-- Right-hand inspector: now playing, stream quality, and the up-next queue. -->
+    <!-- Right-hand inspector: mini player, file metrics, and the up-next queue. -->
     <Border Width="300" Background="{StaticResource BrandSurface}"
             BorderBrush="{StaticResource BrandBorder}" BorderThickness="1,0,0,0">
-        <Grid Padding="16,14" RowSpacing="18" RowDefinitions="Auto,Auto,*">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Padding="16,14" Spacing="18">
 
-            <!-- ── NOW PLAYING ─────────────────────────────────────────── -->
-            <StackPanel Grid.Row="0" Spacing="6">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
-                            Background="{StaticResource BrandAccent}" />
-                    <TextBlock Text="NOW PLAYING" FontFamily="{StaticResource BrandMonoFont}"
-                               FontSize="11" CharacterSpacing="140"
-                               Foreground="{StaticResource BrandDim}" />
+                <!-- ── NOW PLAYING — mini player ───────────────────────── -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                Background="{StaticResource BrandAccent}" />
+                        <TextBlock Text="NOW PLAYING" FontFamily="{StaticResource BrandMonoFont}"
+                                   FontSize="11" CharacterSpacing="140"
+                                   Foreground="{StaticResource BrandDim}" />
+                    </StackPanel>
+
+                    <Border Width="268" Height="268" CornerRadius="4"
+                            Background="{StaticResource BrandVfd}"
+                            BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                        <Image x:Name="DashArt" Stretch="UniformToFill" />
+                    </Border>
+
+                    <TextBlock x:Name="NpTitle" Text="Nothing on the deck"
+                               FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
+                               FontSize="14" Foreground="{StaticResource BrandText}"
+                               TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="NpArtist" Text="" FontFamily="{StaticResource BrandMonoFont}"
+                               FontSize="11" Foreground="{StaticResource BrandDim}"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="NpShow" Text="" FontFamily="{StaticResource BrandMonoFont}"
+                               FontSize="11" Foreground="{StaticResource BrandDim}"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <!-- Mini seek: scrub handlers attached in code (handledEventsToo). -->
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <TextBlock Grid.Column="0" x:Name="DashElapsed" Text="0:00"
+                                   VerticalAlignment="Center"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   Foreground="{StaticResource BrandDim}" />
+                        <Slider Grid.Column="1" x:Name="DashSlider" Minimum="0" Maximum="1"
+                                StepFrequency="0.1" Margin="0" VerticalAlignment="Center">
+                            <Slider.Resources>
+                                <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
+                                <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
+                                <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
+                                <SolidColorBrush x:Key="SliderThumbBackground" Color="#FFFFB22E" />
+                                <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFF7A1A" />
+                                <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
+                            </Slider.Resources>
+                        </Slider>
+                        <TextBlock Grid.Column="2" x:Name="DashTotal" Text="0:00"
+                                   VerticalAlignment="Center"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   Foreground="{StaticResource BrandDim}" />
+                    </Grid>
+
+                    <!-- Mini transport. -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <Button x:Name="DashPrev" Content="&#xE892;" FontFamily="Segoe Fluent Icons"
+                                FontSize="12" Click="OnPrev" Style="{StaticResource IconButtonStyle}"
+                                ToolTipService.ToolTip="Previous (Ctrl+←)" />
+                        <Button x:Name="DashBack15" Content="-15"
+                                FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                Click="OnSkipBack" Style="{StaticResource IconButtonStyle}"
+                                ToolTipService.ToolTip="Back 15s" />
+                        <Button x:Name="DashPlay" Content="&#xE768;" Width="40"
+                                FontFamily="Segoe Fluent Icons" FontSize="13" Click="OnPlayPause"
+                                Style="{StaticResource PlayButtonStyle}"
+                                ToolTipService.ToolTip="Play/Pause (Ctrl+Space)" />
+                        <Button x:Name="DashFwd30" Content="+30"
+                                FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                Click="OnSkipForward" Style="{StaticResource IconButtonStyle}"
+                                ToolTipService.ToolTip="Forward 30s" />
+                        <Button x:Name="DashNext" Content="&#xE893;" FontFamily="Segoe Fluent Icons"
+                                FontSize="12" Click="OnNext" Style="{StaticResource IconButtonStyle}"
+                                ToolTipService.ToolTip="Next (Ctrl+→)" />
+                    </StackPanel>
                 </StackPanel>
-                <TextBlock x:Name="NpTitle" Text="Nothing on the deck"
-                           FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
-                           FontSize="14" Foreground="{StaticResource BrandText}"
-                           TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
-                <TextBlock x:Name="NpArtist" Text="" FontFamily="{StaticResource BrandMonoFont}"
-                           FontSize="11" Foreground="{StaticResource BrandDim}"
-                           TextTrimming="CharacterEllipsis" />
-                <TextBlock x:Name="NpShow" Text="" FontFamily="{StaticResource BrandMonoFont}"
-                           FontSize="11" Foreground="{StaticResource BrandDim}"
-                           TextTrimming="CharacterEllipsis" />
-                <TextBlock x:Name="NpTime" Text="" FontFamily="{StaticResource BrandMonoFont}"
-                           FontSize="11" Foreground="{StaticResource BrandAccent}" />
-            </StackPanel>
 
-            <!-- ── STREAM QUALITY ──────────────────────────────────────── -->
-            <StackPanel Grid.Row="1" Spacing="8">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
-                            Background="{StaticResource BrandAccent}" />
-                    <TextBlock Text="STREAM QUALITY" FontFamily="{StaticResource BrandMonoFont}"
-                               FontSize="11" CharacterSpacing="140"
-                               Foreground="{StaticResource BrandDim}" />
+                <!-- ── SIGNAL PATH — stream + file metrics ─────────────── -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                Background="{StaticResource BrandAccent}" />
+                        <TextBlock Text="SIGNAL PATH" FontFamily="{StaticResource BrandMonoFont}"
+                                   FontSize="11" CharacterSpacing="140"
+                                   Foreground="{StaticResource BrandDim}" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="92,*" RowSpacing="5"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="FORMAT"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="QFormat" Text="—"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="SIGNAL"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="QSignal" Text="—"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="SIZE"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="QSize" Text="—"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="BITRATE"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="QBitrate" Text="—"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="I/O"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="QIo" Text="—"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="TIER"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Row="5" Grid.Column="1" x:Name="QTier" Text="—"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="CONTAINER"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                   CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" x:Name="QMime" Text="—"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
+                    </Grid>
                 </StackPanel>
-                <Grid ColumnDefinitions="92,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="5">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="FORMAT"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
-                               CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
-                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="QFormat" Text="—"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
-                               Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SIGNAL"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
-                               CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="QSignal" Text="—"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
-                               Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="TIER"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
-                               CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
-                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="QTier" Text="—"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
-                               Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="CONTAINER"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
-                               CharacterSpacing="100" Foreground="{StaticResource BrandDim}" />
-                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="QMime" Text="—"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
-                               Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis" />
-                </Grid>
-            </StackPanel>
 
-            <!-- ── UP NEXT ─────────────────────────────────────────────── -->
-            <Grid Grid.Row="2" RowDefinitions="Auto,*" RowSpacing="8">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
-                    <Border Grid.Column="0" Width="6" Height="6" CornerRadius="1"
-                            VerticalAlignment="Center" Background="{StaticResource BrandAccent}"
-                            Margin="0,0,10,0" />
-                    <TextBlock Grid.Column="1" Text="UP NEXT"
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
-                               CharacterSpacing="140" Foreground="{StaticResource BrandDim}" />
-                    <TextBlock Grid.Column="3" x:Name="QueueCount" Text=""
-                               FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                <!-- ── UP NEXT ─────────────────────────────────────────── -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                        <Border Grid.Column="0" Width="6" Height="6" CornerRadius="1"
+                                VerticalAlignment="Center" Background="{StaticResource BrandAccent}"
+                                Margin="0,0,10,0" />
+                        <TextBlock Grid.Column="1" Text="UP NEXT"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   CharacterSpacing="140" Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Grid.Column="3" x:Name="QueueCount" Text=""
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandDim}" />
+                    </Grid>
+                    <TextBlock x:Name="QueueEmpty" Text="Queue a show to see it here."
+                               FontFamily="{StaticResource BrandBodyFont}" FontSize="12"
                                Foreground="{StaticResource BrandDim}" />
-                </Grid>
-                <TextBlock Grid.Row="1" x:Name="QueueEmpty" Text="Queue a show to see it here."
-                           FontFamily="{StaticResource BrandBodyFont}" FontSize="12"
-                           Foreground="{StaticResource BrandDim}" />
-                <ListView Grid.Row="1" x:Name="QueueList" SelectionMode="None"
-                          IsItemClickEnabled="True" ItemClick="OnQueueClick" Margin="-8,0,-8,0">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="views:QueueRow">
-                            <Grid ColumnDefinitions="12,26,*" ColumnSpacing="4" Padding="0,1">
-                                <Border Grid.Column="0" Width="5" Height="5" CornerRadius="1"
-                                        HorizontalAlignment="Left" VerticalAlignment="Center"
-                                        Background="{StaticResource BrandAccent}"
-                                        Visibility="{x:Bind IsCurrent}" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind Position}"
-                                           VerticalAlignment="Center"
-                                           FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
-                                           Foreground="{StaticResource BrandDim}" />
-                                <TextBlock Grid.Column="2" Text="{x:Bind Title}"
-                                           VerticalAlignment="Center" FontSize="12"
-                                           FontFamily="{StaticResource BrandBodyFont}"
-                                           Foreground="{x:Bind TitleBrush}"
-                                           TextTrimming="CharacterEllipsis" />
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </Grid>
-        </Grid>
+                    <ListView x:Name="QueueList" SelectionMode="None"
+                              IsItemClickEnabled="True" ItemClick="OnQueueClick" Margin="-8,0">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="views:QueueRow">
+                                <Grid ColumnDefinitions="12,26,*" ColumnSpacing="4" Padding="0,1">
+                                    <Border Grid.Column="0" Width="5" Height="5" CornerRadius="1"
+                                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            Background="{StaticResource BrandAccent}"
+                                            Visibility="{x:Bind IsCurrent}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind Position}"
+                                               VerticalAlignment="Center"
+                                               FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                               Foreground="{StaticResource BrandDim}" />
+                                    <TextBlock Grid.Column="2" Text="{x:Bind Title}"
+                                               VerticalAlignment="Center" FontSize="12"
+                                               FontFamily="{StaticResource BrandBodyFont}"
+                                               Foreground="{x:Bind TitleBrush}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
     </Border>
 </UserControl>

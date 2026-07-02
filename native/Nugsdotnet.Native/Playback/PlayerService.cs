@@ -62,6 +62,10 @@ public sealed class PlayerService
     /// <summary>The resolved stream feeding the player — the transport's format badge.</summary>
     public StreamPick? CurrentPick { get; private set; }
 
+    /// <summary>The live byte stream under the player — the dashboard's file metrics
+    /// (total size + I/O counters). Null until a track is loaded.</summary>
+    public HttpAudioStream? CurrentStream { get; private set; }
+
     /// <summary>True while resolving a track or while the pipeline reports Opening/Buffering.</summary>
     public bool IsBuffering =>
         _resolving || _player.PlaybackSession.PlaybackState
@@ -158,6 +162,23 @@ public sealed class PlayerService
         else _player.Play();
     }
 
+    /// <summary>Transport nudge: back 15 seconds.</summary>
+    public void SkipBack() => Nudge(TimeSpan.FromSeconds(-15));
+
+    /// <summary>Transport nudge: ahead 30 seconds.</summary>
+    public void SkipForward() => Nudge(TimeSpan.FromSeconds(30));
+
+    private void Nudge(TimeSpan delta)
+    {
+        if (Current is null) return;
+        var session = _player.PlaybackSession;
+        var target = session.Position + delta;
+        if (target < TimeSpan.Zero) target = TimeSpan.Zero;
+        var dur = session.NaturalDuration;
+        if (dur > TimeSpan.Zero && target > dur) target = dur;
+        session.Position = target;
+    }
+
     private void OnMediaEnded()
     {
         if (HasNext)
@@ -181,6 +202,7 @@ public sealed class PlayerService
         {
             _resolving = true;
             CurrentPick = null;
+            CurrentStream = null;
             Status = $"Resolving “{track.Title}”…";
             var session = await _auth.GetSessionAsync();
             var pick = await _resolver.ResolveBestStreamAsync(track.TrackId, session);
@@ -201,6 +223,7 @@ public sealed class PlayerService
             _player.Source = WithDisplayProperties(source, track);
             _player.Play();
             CurrentPick = pick;
+            CurrentStream = stream;
             Status = null;
         }
         catch (Exception ex)

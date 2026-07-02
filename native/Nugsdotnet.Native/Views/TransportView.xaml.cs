@@ -44,6 +44,15 @@ public sealed partial class TransportView : UserControl
         _timer.Tick += (_, _) => Refresh();
         Loaded += (_, _) => _timer.Start();
         Unloaded += (_, _) => _timer.Stop();
+
+        // Slider marks pointer events handled inside its template, so XAML-wired
+        // handlers never fire (drags fought the poll timer and seeks were lost).
+        // handledEventsToo:true sees them anyway; CaptureLost/Canceled end a drag
+        // that leaves the control.
+        PositionSlider.AddHandler(PointerPressedEvent, new PointerEventHandler(OnSeekStart), true);
+        PositionSlider.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnSeekEnd), true);
+        PositionSlider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnSeekEnd), true);
+        PositionSlider.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnSeekEnd), true);
     }
 
     /// <summary>Polls the player ~4×/sec on the UI thread.</summary>
@@ -54,6 +63,8 @@ public sealed partial class TransportView : UserControl
         NextButton.IsEnabled = _player.HasNext;
 
         var c = _player.Current;
+        Back15Button.IsEnabled = c is not null;
+        Fwd30Button.IsEnabled = c is not null;
         NowPlayingText.Text = _player.Status ?? c?.Title ?? "";
         NowPlayingSub.Text = _player.Status is not null || c is null
             ? ""
@@ -126,12 +137,15 @@ public sealed partial class TransportView : UserControl
     private void OnPlayPause(object sender, RoutedEventArgs e) => _player.TogglePlayPause();
     private void OnPrev(object sender, RoutedEventArgs e) => _player.Previous();
     private void OnNext(object sender, RoutedEventArgs e) => _player.Next();
+    private void OnSkipBack(object sender, RoutedEventArgs e) => _player.SkipBack();
+    private void OnSkipForward(object sender, RoutedEventArgs e) => _player.SkipForward();
     private void OnMuteToggle(object sender, RoutedEventArgs e) => _player.IsMuted = !_player.IsMuted;
 
     private void OnSeekStart(object sender, PointerRoutedEventArgs e) => _scrubbing = true;
 
     private void OnSeekEnd(object sender, PointerRoutedEventArgs e)
     {
+        if (!_scrubbing) return;   // CaptureLost follows Released — apply once
         _scrubbing = false;
         _player.Position = TimeSpan.FromSeconds(PositionSlider.Value);
     }

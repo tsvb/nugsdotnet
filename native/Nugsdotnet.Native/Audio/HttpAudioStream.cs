@@ -6,6 +6,27 @@ using Windows.Storage.Streams;
 namespace Nugsdotnet.Native.Audio;
 
 /// <summary>
+/// Live I/O counters for one logical stream, shared across its clones (Media
+/// Foundation reads through <see cref="HttpAudioStream.GetInputStreamAt"/> clones,
+/// so per-instance counts would undercount). Reads happen on MF threads —
+/// Interlocked all the way. Feeds the dashboard's file metrics.
+/// </summary>
+public sealed class StreamIoStats
+{
+    private long _bytesFetched;
+    private long _rangeReads;
+
+    public long BytesFetched => Interlocked.Read(ref _bytesFetched);
+    public long RangeReads => Interlocked.Read(ref _rangeReads);
+
+    internal void Record(long bytes)
+    {
+        Interlocked.Add(ref _bytesFetched, bytes);
+        Interlocked.Increment(ref _rangeReads);
+    }
+}
+
+/// <summary>
 /// An <see cref="IRandomAccessStream"/> backed by HTTP Range requests against the
 /// nugs CDN, injecting the required Referer + mobile User-Agent on every fetch.
 ///
@@ -27,8 +48,12 @@ public sealed class HttpAudioStream : IRandomAccessStream
 
     public string ContentType { get; }
 
+    /// <summary>Shared with clones — one logical stream, one set of counters.</summary>
+    public StreamIoStats Stats { get; }
+
     private HttpAudioStream(
-        HttpClient http, Uri uri, string referer, string ua, ulong size, string contentType)
+        HttpClient http, Uri uri, string referer, string ua, ulong size, string contentType,
+        StreamIoStats? stats = null)
     {
         _http = http;
         _uri = uri;
@@ -36,6 +61,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
         _userAgent = ua;
         _size = size;
         ContentType = contentType;
+        Stats = stats ?? new StreamIoStats();
     }
 
     /// <summary>
@@ -99,7 +125,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
     }
 
     public IRandomAccessStream CloneStream() =>
-        new HttpAudioStream(_http, _uri, _referer, _userAgent, _size, ContentType) { _position = _position };
+        new HttpAudioStream(_http, _uri, _referer, _userAgent, _size, ContentType, Stats) { _position = _position };
 
     public IInputStream GetInputStreamAt(ulong position)
     {
@@ -141,6 +167,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
 
             var bytes = await res.Content.ReadAsByteArrayAsync(token);
             _position = start + (ulong)bytes.Length;
+            Stats.Record(bytes.Length);
             return bytes.AsBuffer();
         });
     }

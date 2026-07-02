@@ -7,7 +7,7 @@
     <Border Background="{StaticResource BrandSurface}"
             BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,1,0,0">
         <Grid Padding="14,8" ColumnSpacing="10"
-              ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
+              ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
 
             <!-- Now-playing block: art clicks through to the album. -->
             <Button Grid.Column="0" Style="{StaticResource CardButtonStyle}" Padding="0"
@@ -27,27 +27,37 @@
                            Foreground="{StaticResource BrandDim}" />
             </StackPanel>
 
-            <!-- Segoe Fluent Icons glyphs (monochrome) — emoji ⏮/⏭ render as colour glyphs. -->
+            <!-- Segoe Fluent Icons glyphs (monochrome) — emoji ⏮/⏭ render as colour
+                 glyphs. The ±skips are mono text: receiver-style, unambiguous. -->
             <Button x:Name="PrevButton" Grid.Column="2" Content="&#xE892;"
                     FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnPrev"
                     Style="{StaticResource IconButtonStyle}"
                     ToolTipService.ToolTip="Previous (Ctrl+←)" />
-            <Button x:Name="PlayPauseButton" Grid.Column="3" Content="&#xE768;" Width="46"
+            <Button x:Name="Back15Button" Grid.Column="3" Content="-15"
+                    FontFamily="{StaticResource BrandMonoFont}" FontSize="11" Click="OnSkipBack"
+                    Style="{StaticResource IconButtonStyle}"
+                    ToolTipService.ToolTip="Back 15s" />
+            <Button x:Name="PlayPauseButton" Grid.Column="4" Content="&#xE768;" Width="46"
                     FontFamily="Segoe Fluent Icons" FontSize="15" Click="OnPlayPause"
                     Style="{StaticResource PlayButtonStyle}"
                     ToolTipService.ToolTip="Play/Pause (Ctrl+Space)" />
-            <Button x:Name="NextButton" Grid.Column="4" Content="&#xE893;"
+            <Button x:Name="Fwd30Button" Grid.Column="5" Content="+30"
+                    FontFamily="{StaticResource BrandMonoFont}" FontSize="11" Click="OnSkipForward"
+                    Style="{StaticResource IconButtonStyle}"
+                    ToolTipService.ToolTip="Forward 30s" />
+            <Button x:Name="NextButton" Grid.Column="6" Content="&#xE893;"
                     FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnNext"
                     Style="{StaticResource IconButtonStyle}"
                     ToolTipService.ToolTip="Next (Ctrl+→)" />
 
-            <!-- Seek block: elapsed · slider · −remaining, receiver-counter style. -->
-            <TextBlock x:Name="ElapsedText" Grid.Column="5" VerticalAlignment="Center" Text="0:00"
+            <!-- Seek block: elapsed · slider · −remaining, receiver-counter style.
+                 Scrub handlers are attached in code with handledEventsToo:true —
+                 Slider marks pointer events handled, so XAML wiring never fires. -->
+            <TextBlock x:Name="ElapsedText" Grid.Column="7" VerticalAlignment="Center" Text="0:00"
                        FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
                        Foreground="{StaticResource BrandDim}" />
-            <Slider x:Name="PositionSlider" Grid.Column="6" Minimum="0" Maximum="1" StepFrequency="0.1"
-                    Margin="0" VerticalAlignment="Center"
-                    PointerPressed="OnSeekStart" PointerReleased="OnSeekEnd">
+            <Slider x:Name="PositionSlider" Grid.Column="8" Minimum="0" Maximum="1" StepFrequency="0.1"
+                    Margin="0" VerticalAlignment="Center">
                 <Slider.Resources>
                     <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
                     <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
@@ -57,15 +67,15 @@
                     <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
                 </Slider.Resources>
             </Slider>
-            <TextBlock x:Name="RemainText" Grid.Column="7" VerticalAlignment="Center" Text="-0:00"
+            <TextBlock x:Name="RemainText" Grid.Column="9" VerticalAlignment="Center" Text="-0:00"
                        FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
                        Foreground="{StaticResource BrandDim}" />
 
             <!-- Volume: icon toggles mute. -->
-            <Button x:Name="VolumeButton" Grid.Column="8" Content="&#xE767;"
+            <Button x:Name="VolumeButton" Grid.Column="10" Content="&#xE767;"
                     FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnMuteToggle"
                     Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Mute" />
-            <Slider x:Name="VolumeSlider" Grid.Column="9" Minimum="0" Maximum="100" Value="100" Width="90"
+            <Slider x:Name="VolumeSlider" Grid.Column="11" Minimum="0" Maximum="100" Value="100" Width="90"
                     VerticalAlignment="Center" ValueChanged="OnVolumeChanged">
                 <Slider.Resources>
                     <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
@@ -78,7 +88,7 @@
             </Slider>
 
             <!-- Resolved-stream badge; amber when lossless (AMBER = signal). -->
-            <Border x:Name="BadgePanel" Grid.Column="10" VerticalAlignment="Center"
+            <Border x:Name="BadgePanel" Grid.Column="12" VerticalAlignment="Center"
                     BorderBrush="{StaticResource BrandDim}" BorderThickness="1"
                     CornerRadius="3" Padding="7,3" Visibility="Collapsed">
                 <TextBlock x:Name="BadgeText" Text="" FontFamily="{StaticResource BrandMonoFont}"
