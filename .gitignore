@@ -6,14 +6,8 @@ obj/
 .vs/
 .vscode/
 .idea/
-tokens.json
 
-# --- packaging build output ----------------------------------------------
-packaging/Output/
-
-# --- legacy Node scaffold (will be removed) ------------------------------
-node_modules/
-dist/
+# --- local junk -----------------------------------------------------------
 .env
 .env.local
 *.log

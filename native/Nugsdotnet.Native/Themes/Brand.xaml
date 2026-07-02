@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- ════ RECEIVER '74 palette — warm-VFD vintage hi-fi ════
-         AMBER = signal / now-playing.  Mirrors src/Nugsdotnet.UI/wwwroot/css/app.css. -->
+         AMBER = signal / now-playing.  Inherited from the retired web head's
+         app.css (git history, v0.2.1) — this file is the palette's home now. -->
     <SolidColorBrush x:Key="BrandBg" Color="#FF0A0907" />
     <SolidColorBrush x:Key="BrandSurface" Color="#FF15120D" />
     <SolidColorBrush x:Key="BrandSurface2" Color="#FF1F1A12" />

@@ -3,9 +3,10 @@
 [![native CI](https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml/badge.svg)](https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml)
 
 A **standalone, 100% native** Windows desktop client for nugs.net, built with
-**WinUI 3 (Windows App SDK)**. It reimplements the nugsdotnet feature set from
-scratch and has **zero dependency** on the Blazor/MAUI projects in the parent
-repo — its own solution, its own services, no shared code or packages.
+**WinUI 3 (Windows App SDK)**. It reimplemented the nugsdotnet feature set from
+scratch with **zero dependency** on the repo's original Blazor/MAUI heads —
+which have since been retired (they live in git history through `v0.2.1`).
+This head *is* nugsdotnet now.
 
 > **Status: feature-complete player** (Phases 1–2 and most of Phase 3 landed).
 > Only installer/winget packaging remains on the roadmap. CI compiles the WinUI
@@ -46,17 +47,17 @@ repo — its own solution, its own services, no shared code or packages.
 | `Ctrl+←`     | Previous track      |
 | `Ctrl+D`     | Toggle dashboard    |
 
-## Why it's simpler than the web/MAUI heads
+## Why it's simpler than the retired web/MAUI heads
 
-The Blazor heads need a loopback **Kestrel proxy** because a WebView can't set the
-`Referer`/`User-Agent` headers the nugs CDN requires and can't stream Range/206
-audio through C#. A native app has neither limit:
+The Blazor heads needed a loopback **Kestrel proxy** because a WebView can't set
+the `Referer`/`User-Agent` headers the nugs CDN requires and can't stream
+Range/206 audio through C#. A native app has neither limit:
 
 - **Audio** is fed to `Windows.Media.Playback.MediaPlayer` from a custom
   `IRandomAccessStream` (`Audio/HttpAudioStream.cs`) that issues ranged GETs with
   the required headers — the in-process equivalent of the proxy, **no server**.
 - **Formats**: Media Foundation decodes FLAC/ALAC/AAC natively on Windows 10+, so
-  the native head can play formats the web head punts on.
+  the native head plays formats the web head punted on.
 - **Gapless queueing** comes from `MediaPlaybackList` (implemented — one-track
   look-ahead pre-roll) — no hand-rolled dual-`<audio>` swap.
 
@@ -135,7 +136,8 @@ Nothing in `native/` references the parent projects, so it builds unchanged once
 - **Phase 3 (mostly done)** — stream-quality dashboard ✓ (the inspector's
   SIGNAL PATH section); true gapless via `MediaPlaybackList` ✓ (one-track
   look-ahead pre-roll, resolve-on-advance fallback). **Remaining:** Inno Setup
-  installer + winget manifest mirroring the parent `packaging/` setup.
+  installer + winget manifest (the retired MAUI head's packaging, in git
+  history at `v0.2.1`, is the template).
 - **Ideas beyond Phase 3** — resume-on-launch (persist queue + position), HLS
   playback instead of auto-skip, remembered window/volume state.
 
