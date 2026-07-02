@@ -18,9 +18,13 @@ This head *is* nugsdotnet now.
   retired web head, now native through and through), running edge-to-edge under
   a custom title bar (branded drag strip + faceplate-coloured caption buttons).
   Big Shoulders / Hanken Grotesk / DM Mono brand fonts are bundled.
-- **Home dashboard** — time-of-day greeting, a **Recently Played** art-card
-  rail (persisted locally, capped at 12), and a filterable faceplate-chip
-  artist grid with live count.
+- **Home dashboard** — time-of-day greeting, **Recently Played** and **Stash**
+  art-card rails (both persisted locally; recents capped at 12, the stash is
+  your library), and a filterable faceplate-chip artist grid with live count.
+- **Stash** — a star toggle on every album/show page (amber when stashed).
+  Local-first by design: nugs' legacy API exposes no favorites surface, so the
+  stash lives in `%LOCALAPPDATA%\nugsdotnet\stash.json`; server sync can layer
+  on later if the API ever grounds it.
 - **Browse** — artist pages (releases as art cards, virtualized show list),
   set-grouped album pages with a live amber now-playing row, sectioned search.
 - **Transport** — clickable album art (returns to the show), prev / **−15** /

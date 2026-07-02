@@ -6,7 +6,7 @@ using Nugsdotnet.Native.Imaging;
 
 namespace Nugsdotnet.Native.ViewModels;
 
-/// <summary>One album card on a horizontal art rail (dashboard recents, artist releases).</summary>
+/// <summary>One album card on a horizontal art rail (recents, stash, artist releases).</summary>
 public sealed partial class ShowCard : ObservableObject
 {
     public string ContainerId { get; }
@@ -33,41 +33,56 @@ public sealed partial class ShowCard : ObservableObject
 }
 
 /// <summary>
-/// Home dashboard: greeting hero, Recently Played rail, filterable artist grid.
-/// Registered as a singleton — artists fetch once per session, recents refresh
-/// on every visit.
+/// Home dashboard: greeting hero, Recently Played + Stash rails, filterable
+/// artist grid. Registered as a singleton — artists fetch once per session,
+/// the rails refresh on every visit.
 /// </summary>
 public partial class HomeViewModel : ObservableObject
 {
+    /// <summary>The rail shows the newest stashed items; the store is uncapped.
+    /// Keeps the non-virtualized header rail and per-visit art loads bounded.</summary>
+    private const int StashRailCap = 24;
+
     private readonly NugsCatalog _catalog;
     private readonly RecentsStore _recents;
+    private readonly StashStore _stash;
     private readonly ImageLoader _images;
     private List<ArtistEntry> _all = new();
 
     public ObservableCollection<ArtistEntry> Artists { get; } = new();
     public ObservableCollection<ShowCard> Recent { get; } = new();
+    public ObservableCollection<ShowCard> Stash { get; } = new();
 
     [ObservableProperty] private string filter = "";
     [ObservableProperty] private bool busy;
     [ObservableProperty] private string? status;
     [ObservableProperty] private string greeting = "WELCOME BACK";
     [ObservableProperty] private string artistsLabel = "ARTISTS";
+    [ObservableProperty] private string stashLabel = "STASH";
 
-    public HomeViewModel(NugsCatalog catalog, RecentsStore recents, ImageLoader images)
+    public HomeViewModel(NugsCatalog catalog, RecentsStore recents, StashStore stash, ImageLoader images)
     {
         _catalog = catalog;
         _recents = recents;
+        _stash = stash;
         _images = images;
     }
 
-    /// <summary>Rebuilds the rail from disk; art fills in as it downloads.</summary>
-    public async Task RefreshRecentsAsync()
+    /// <summary>Rebuilds both rails from disk; art fills in as it downloads.</summary>
+    public async Task RefreshRailsAsync()
     {
         Greeting = GreetingFor(DateTime.Now.Hour);
         var plays = await _recents.LoadAsync();
         Recent.Clear();
         foreach (var p in plays) Recent.Add(new ShowCard(p));
-        _ = LoadArtsAsync(Recent.ToList());   // ImageLoader never throws
+
+        var stashed = await _stash.LoadAsync();
+        Stash.Clear();
+        foreach (var s in stashed.Take(StashRailCap))
+            Stash.Add(new ShowCard(s.ContainerId, s.Title, s.Artist, s.ImagePath));
+        StashLabel = stashed.Count > 0 ? $"STASH · {stashed.Count}" : "STASH";
+
+        _ = LoadArtsAsync(Recent.Concat(Stash).ToList());   // ImageLoader never throws
     }
 
     public async Task LoadArtistsAsync()

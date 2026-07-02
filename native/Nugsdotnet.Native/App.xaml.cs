@@ -34,6 +34,7 @@ public partial class App : Application
         sc.AddSingleton<NugsCatalog>();
         sc.AddSingleton<NugsStreamResolver>();
         sc.AddSingleton<RecentsStore>();
+        sc.AddSingleton<StashStore>();
         sc.AddSingleton<PlaybackStateStore>();
         sc.AddSingleton<ImageLoader>();
 

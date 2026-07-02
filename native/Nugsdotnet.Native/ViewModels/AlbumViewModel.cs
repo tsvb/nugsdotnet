@@ -38,6 +38,7 @@ public partial class AlbumViewModel : ObservableObject
     private readonly PlayerService _player;
     private readonly ImageLoader _images;
     private readonly RecentsStore _recents;
+    private readonly StashStore _stash;
 
     private AlbumView? _album;
     private List<NowPlaying> _queue = new();
@@ -51,13 +52,17 @@ public partial class AlbumViewModel : ObservableObject
     [ObservableProperty] private ImageSource? cover;
     [ObservableProperty] private bool busy;
     [ObservableProperty] private string? status;
+    [ObservableProperty] private bool isStashed;
 
-    public AlbumViewModel(NugsCatalog catalog, PlayerService player, ImageLoader images, RecentsStore recents)
+    public AlbumViewModel(
+        NugsCatalog catalog, PlayerService player, ImageLoader images,
+        RecentsStore recents, StashStore stash)
     {
         _catalog = catalog;
         _player = player;
         _images = images;
         _recents = recents;
+        _stash = stash;
     }
 
     public async Task LoadAsync(string containerId)
@@ -79,6 +84,7 @@ public partial class AlbumViewModel : ObservableObject
                 TrackGroups.Add(new TrackGroup(SetLabel(g.Key), g.Select(t => new TrackItem(t))));
             if (_album.Tracks.Count == 0) Status = "No tracks in this container.";
             RefreshNowPlaying();   // this album may already be playing
+            IsStashed = await _stash.ContainsAsync(_album.Id);
 
             if (!string.IsNullOrEmpty(_album.ImagePath))
                 Cover = await _images.LoadAsync(_album.ImagePath);
@@ -136,6 +142,15 @@ public partial class AlbumViewModel : ObservableObject
         foreach (var group in TrackGroups)
             foreach (var item in group)
                 item.IsNowPlaying = id is not null && item.Track.TrackId == id;
+    }
+
+    /// <summary>Stash/unstash this album — the Home dashboard's STASH rail.</summary>
+    public async Task ToggleStashAsync()
+    {
+        if (_album is null || string.IsNullOrEmpty(_album.Id)) return;
+        IsStashed = await _stash.ToggleAsync(new StashEntry(
+            _album.Id, _album.Title, _album.Artist, _album.Date, _album.Venue,
+            _album.ImagePath, DateTimeOffset.UtcNow));
     }
 
     /// <summary>Feeds the Home dashboard's Recently Played rail (fire-and-forget).</summary>

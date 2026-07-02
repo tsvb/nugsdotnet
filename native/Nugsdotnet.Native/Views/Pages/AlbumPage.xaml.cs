@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Nugsdotnet.Native.ViewModels;
 
@@ -31,6 +32,7 @@ public sealed partial class AlbumPage : Page
         BusyRing.Visibility = Visibility.Visible;
         await _vm.LoadAsync(containerId);
         BusyRing.Visibility = Visibility.Collapsed;
+        RefreshStashButton();
         // Grouped source is set after the data loads (a CVS in resources can't bind to DataContext).
         var cvs = (CollectionViewSource)Resources["TracksSource"];
         cvs.Source = _vm.TrackGroups;
@@ -38,6 +40,23 @@ public sealed partial class AlbumPage : Page
     }
 
     private void OnPlayAll(object sender, RoutedEventArgs e) => _vm.PlayAll();
+
+    private async void OnToggleStash(object sender, RoutedEventArgs e)
+    {
+        await _vm.ToggleStashAsync();
+        RefreshStashButton();
+    }
+
+    /// <summary>Star lights amber when stashed — AMBER = signal.</summary>
+    private void RefreshStashButton()
+    {
+        var brush = (Brush)Application.Current.Resources[_vm.IsStashed ? "BrandAccent" : "BrandDim"];
+        StashGlyph.Text = _vm.IsStashed ? "\uE735" : "\uE734";   // filled : outline star
+        StashGlyph.Foreground = brush;
+        StashLabel.Text = _vm.IsStashed ? "STASHED" : "STASH";
+        StashLabel.Foreground = brush;
+        ToolTipService.SetToolTip(StashButton, _vm.IsStashed ? "Remove from stash" : "Add to stash");
+    }
 
     private void OnPlayTrack(object sender, RoutedEventArgs e)
     {

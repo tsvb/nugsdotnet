@@ -109,12 +109,14 @@ Media keys and the Windows media flyout work too (SMTC with full metadata).
 
 Phases 1–3 are landed: player, browse, dashboard, gapless, SMTC,
 resume-on-launch (queue + position primed on relaunch), HLS playback,
-remembered window/volume state, and tag-triggered installer + winget
-distribution. Next up, as the itch strikes:
+remembered window/volume state, a local **stash** (star an album, it lands on
+the Home rail), and tag-triggered installer + winget distribution. Next up, as
+the itch strikes:
 
 - **Code signing** — Azure Trusted Signing to retire the SmartScreen prompt
   (hook is already in the release workflow).
-- **Favorites / library sync** — the stash, natively.
+- **Stash sync** — push the local stash server-side if nugs' API ever exposes
+  a favorites surface (none documented today).
 
 ---
 

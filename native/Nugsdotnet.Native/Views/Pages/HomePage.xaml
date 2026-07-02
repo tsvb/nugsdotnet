@@ -7,6 +7,36 @@
     xmlns:vm="using:Nugsdotnet.Native.ViewModels"
     Background="{StaticResource BrandBg}">
 
+    <Page.Resources>
+        <!-- One card template for both rails (recents + stash). -->
+        <DataTemplate x:Key="ShowCardTemplate" x:DataType="vm:ShowCard">
+            <Button Style="{StaticResource CardButtonStyle}"
+                    Tag="{x:Bind}" Click="OnCardClick">
+                <StackPanel Width="150" Spacing="6">
+                    <Border Width="150" Height="150" CornerRadius="4"
+                            Background="{StaticResource BrandSurface2}"
+                            BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                        <Image Source="{x:Bind Art, Mode=OneWay}" Stretch="UniformToFill" />
+                    </Border>
+                    <TextBlock Text="{x:Bind Title}" Height="36"
+                               FontFamily="{StaticResource BrandBodyFont}"
+                               FontWeight="SemiBold" FontSize="13"
+                               Foreground="{StaticResource BrandText}"
+                               TextWrapping="Wrap" MaxLines="2"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{x:Bind Sub}"
+                               FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                               Foreground="{StaticResource BrandDim}"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <ItemsPanelTemplate x:Key="RailPanel">
+            <StackPanel Orientation="Horizontal" Spacing="10" />
+        </ItemsPanelTemplate>
+    </Page.Resources>
+
     <!-- The artist grid is the scrolling element; the hero + rails live in its
          header so several hundred artist chips stay virtualized. -->
     <GridView Padding="24,20,24,12"
@@ -37,37 +67,27 @@
                     </StackPanel>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                        <ItemsControl ItemsSource="{Binding Recent}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="10" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:ShowCard">
-                                    <Button Style="{StaticResource CardButtonStyle}"
-                                            Tag="{x:Bind}" Click="OnRecentClick">
-                                        <StackPanel Width="150" Spacing="6">
-                                            <Border Width="150" Height="150" CornerRadius="4"
-                                                    Background="{StaticResource BrandSurface2}"
-                                                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
-                                                <Image Source="{x:Bind Art, Mode=OneWay}" Stretch="UniformToFill" />
-                                            </Border>
-                                            <TextBlock Text="{x:Bind Title}" Height="36"
-                                                       FontFamily="{StaticResource BrandBodyFont}"
-                                                       FontWeight="SemiBold" FontSize="13"
-                                                       Foreground="{StaticResource BrandText}"
-                                                       TextWrapping="Wrap" MaxLines="2"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{x:Bind Sub}"
-                                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
-                                                       Foreground="{StaticResource BrandDim}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding Recent}"
+                                      ItemsPanel="{StaticResource RailPanel}"
+                                      ItemTemplate="{StaticResource ShowCardTemplate}" />
+                    </ScrollViewer>
+                </StackPanel>
+
+                <!-- ── STASH — the local library rail (display capped; label
+                     carries the full count) ───────────────────────────────── -->
+                <StackPanel x:Name="StashSection" Spacing="10" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                Background="{StaticResource BrandAccent}" />
+                        <TextBlock Text="{Binding StashLabel}" FontFamily="{StaticResource BrandMonoFont}"
+                                   FontSize="11" CharacterSpacing="140"
+                                   Foreground="{StaticResource BrandDim}" />
+                    </StackPanel>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                        <ItemsControl ItemsSource="{Binding Stash}"
+                                      ItemsPanel="{StaticResource RailPanel}"
+                                      ItemTemplate="{StaticResource ShowCardTemplate}" />
                     </ScrollViewer>
                 </StackPanel>
 
