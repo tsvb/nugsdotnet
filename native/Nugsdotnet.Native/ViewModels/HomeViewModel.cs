@@ -6,22 +6,26 @@ using Nugsdotnet.Native.Imaging;
 
 namespace Nugsdotnet.Native.ViewModels;
 
-/// <summary>One album card on the dashboard's Recently Played rail.</summary>
+/// <summary>One album card on a horizontal art rail (dashboard recents, artist releases).</summary>
 public sealed partial class ShowCard : ObservableObject
 {
     public string ContainerId { get; }
     public string? Title { get; }
-    public string? Artist { get; }
+    public string? Sub { get; }
     private readonly string? _imagePath;
 
     [ObservableProperty] private ImageSource? art;
 
-    public ShowCard(RecentPlay play)
+    public ShowCard(string containerId, string? title, string? sub, string? imagePath)
     {
-        ContainerId = play.ContainerId;
-        Title = play.Title;
-        Artist = play.Artist;
-        _imagePath = play.ImagePath;
+        ContainerId = containerId;
+        Title = title;
+        Sub = sub;
+        _imagePath = imagePath;
+    }
+
+    public ShowCard(RecentPlay play) : this(play.ContainerId, play.Title, play.Artist, play.ImagePath)
+    {
     }
 
     /// <summary>UI thread only (builds a BitmapImage); never throws.</summary>

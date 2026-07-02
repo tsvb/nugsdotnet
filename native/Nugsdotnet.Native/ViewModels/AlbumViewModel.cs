@@ -155,7 +155,7 @@ public partial class AlbumViewModel : ObservableObject
     }
 
     private List<NowPlaying> One(TrackRow t) =>
-        new() { new NowPlaying(t.TrackId, t.Title, _album?.Artist, _album?.Title, _album?.ImagePath) };
+        new() { new NowPlaying(t.TrackId, t.Title, _album?.Artist, _album?.Title, _album?.ImagePath, _album?.Id) };
 
     private static string SetLabel(int setNum) => setNum switch
     {

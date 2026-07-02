@@ -10,7 +10,12 @@
         <StackPanel Padding="24" Spacing="14">
             <TextBlock Text="{Binding Heading}" FontFamily="{StaticResource BrandDisplayFont}"
                        FontWeight="ExtraBold" FontSize="22" Foreground="{StaticResource BrandText}" />
-            <TextBlock Text="{Binding Status}" Foreground="{StaticResource BrandDim}" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <ProgressRing x:Name="BusyRing" IsActive="True" Visibility="Collapsed"
+                              Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
+                           Foreground="{StaticResource BrandDim}" />
+            </StackPanel>
 
             <StackPanel x:Name="ArtistsSection" Spacing="6" Visibility="Collapsed">
                 <StackPanel Orientation="Horizontal" Spacing="10">

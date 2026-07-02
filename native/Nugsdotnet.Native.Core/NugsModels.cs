@@ -128,6 +128,8 @@ public sealed record SearchView(IReadOnlyList<ArtistEntry> Artists, IReadOnlyLis
 public sealed record ArtistShows(
     string? ArtistName, IReadOnlyList<ContainerEntry> Releases, IReadOnlyList<ContainerEntry> Shows);
 
-/// <summary>One item in the play queue. ImagePath carries the album art for the transport.</summary>
+/// <summary>One item in the play queue. ImagePath carries the album art for the
+/// transport; ContainerId lets the transport click back through to the album.</summary>
 public sealed record NowPlaying(
-    string TrackId, string? Title, string? Artist, string? Show, string? ImagePath = null);
+    string TrackId, string? Title, string? Artist, string? Show, string? ImagePath = null,
+    string? ContainerId = null);

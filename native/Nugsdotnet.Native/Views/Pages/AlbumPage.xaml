@@ -31,7 +31,12 @@
             </StackPanel>
         </Grid>
 
-        <TextBlock Grid.Row="1" Text="{Binding Status}" Foreground="{StaticResource BrandDim}" />
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
+            <ProgressRing x:Name="BusyRing" IsActive="True" Visibility="Collapsed"
+                          Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
+            <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
+                       Foreground="{StaticResource BrandDim}" />
+        </StackPanel>
 
         <ListView Grid.Row="2" x:Name="TracksList" SelectionMode="None">
             <ListView.GroupStyle>

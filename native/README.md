@@ -84,10 +84,13 @@ Nothing in `native/` references the parent projects, so it builds unchanged once
 ## Roadmap
 
 - **Phase 1 (done)** — auth, search, single-track native playback, basic transport.
-- **Phase 2** — artist landing + album detail; queue UI, enqueue/play-next,
-  `MediaPlaybackList` gapless + prev/next; keyboard shortcuts (KeyboardAccelerators)
-  and System Media Transport Controls; image loading (direct CDN GET + cache).
-- **Phase 3** — quality/telemetry dashboard; Inno Setup installer + winget manifest
-  mirroring the parent `packaging/` setup.
+- **Phase 2 (done)** — artist landing + album detail; queue UI (dashboard
+  inspector with up-next jump), enqueue/play-next + prev/next; keyboard
+  shortcuts (KeyboardAccelerators) and System Media Transport Controls with
+  full metadata; image loading (direct CDN GET + in-memory cache); RECEIVER '74
+  re-skin, custom title bar, Home dashboard with recently-played rail.
+- **Phase 3** — stream-quality dashboard **(done — the inspector's STREAM
+  QUALITY section)**; true gapless via `MediaPlaybackList`; Inno Setup
+  installer + winget manifest mirroring the parent `packaging/` setup.
 
 Not affiliated with nugs.net. For personal use against your own subscription.

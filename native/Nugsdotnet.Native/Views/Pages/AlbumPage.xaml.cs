@@ -28,7 +28,9 @@ public sealed partial class AlbumPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         var containerId = e.Parameter as string ?? "";
+        BusyRing.Visibility = Visibility.Visible;
         await _vm.LoadAsync(containerId);
+        BusyRing.Visibility = Visibility.Collapsed;
         // Grouped source is set after the data loads (a CVS in resources can't bind to DataContext).
         var cvs = (CollectionViewSource)Resources["TracksSource"];
         cvs.Source = _vm.TrackGroups;

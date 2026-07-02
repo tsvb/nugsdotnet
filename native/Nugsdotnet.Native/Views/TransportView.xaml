@@ -7,45 +7,65 @@
     <Border Background="{StaticResource BrandSurface}"
             BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,1,0,0">
         <Grid Padding="14,8" ColumnSpacing="10"
-              ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
-            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="3"
-                    Background="{StaticResource BrandSurface2}"
-                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
-                <Image x:Name="Thumb" Stretch="UniformToFill" />
-            </Border>
+              ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
 
-            <!-- Segoe Fluent Icons glyphs (monochrome) — emoji ⏮/⏭ render as colour glyphs. -->
-            <Button x:Name="PrevButton" Grid.Column="1" Content="&#xE892;"
-                    FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnPrev"
-                    Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Previous" />
-            <Button x:Name="PlayPauseButton" Grid.Column="2" Content="&#xE768;" Width="46"
-                    FontFamily="Segoe Fluent Icons" FontSize="15" Click="OnPlayPause"
-                    Style="{StaticResource PlayButtonStyle}" />
-            <Button x:Name="NextButton" Grid.Column="3" Content="&#xE893;"
-                    FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnNext"
-                    Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Next" />
-
-            <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2" Margin="6,0,0,0">
+            <!-- Now-playing block: art clicks through to the album. -->
+            <Button Grid.Column="0" Style="{StaticResource CardButtonStyle}" Padding="0"
+                    Click="OnArtClick" ToolTipService.ToolTip="Go to show">
+                <Border Width="46" Height="46" CornerRadius="3"
+                        Background="{StaticResource BrandSurface2}"
+                        BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                    <Image x:Name="Thumb" Stretch="UniformToFill" />
+                </Border>
+            </Button>
+            <StackPanel Grid.Column="1" Width="200" VerticalAlignment="Center" Spacing="2">
                 <TextBlock x:Name="NowPlayingText" Text="" TextTrimming="CharacterEllipsis"
                            FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
-                           Foreground="{StaticResource BrandText}" />
-                <Slider x:Name="PositionSlider" Minimum="0" Maximum="1" StepFrequency="0.1" Margin="0"
-                        PointerPressed="OnSeekStart" PointerReleased="OnSeekEnd">
-                    <Slider.Resources>
-                        <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
-                        <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
-                        <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
-                        <SolidColorBrush x:Key="SliderThumbBackground" Color="#FFFFB22E" />
-                        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFF7A1A" />
-                        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
-                    </Slider.Resources>
-                </Slider>
+                           FontSize="13" Foreground="{StaticResource BrandText}" />
+                <TextBlock x:Name="NowPlayingSub" Text="" TextTrimming="CharacterEllipsis"
+                           FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                           Foreground="{StaticResource BrandDim}" />
             </StackPanel>
 
-            <TextBlock x:Name="TimeText" Grid.Column="5" VerticalAlignment="Center" Text="0:00 / 0:00"
+            <!-- Segoe Fluent Icons glyphs (monochrome) — emoji ⏮/⏭ render as colour glyphs. -->
+            <Button x:Name="PrevButton" Grid.Column="2" Content="&#xE892;"
+                    FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnPrev"
+                    Style="{StaticResource IconButtonStyle}"
+                    ToolTipService.ToolTip="Previous (Ctrl+←)" />
+            <Button x:Name="PlayPauseButton" Grid.Column="3" Content="&#xE768;" Width="46"
+                    FontFamily="Segoe Fluent Icons" FontSize="15" Click="OnPlayPause"
+                    Style="{StaticResource PlayButtonStyle}"
+                    ToolTipService.ToolTip="Play/Pause (Ctrl+Space)" />
+            <Button x:Name="NextButton" Grid.Column="4" Content="&#xE893;"
+                    FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnNext"
+                    Style="{StaticResource IconButtonStyle}"
+                    ToolTipService.ToolTip="Next (Ctrl+→)" />
+
+            <!-- Seek block: elapsed · slider · −remaining, receiver-counter style. -->
+            <TextBlock x:Name="ElapsedText" Grid.Column="5" VerticalAlignment="Center" Text="0:00"
                        FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
                        Foreground="{StaticResource BrandDim}" />
-            <Slider x:Name="VolumeSlider" Grid.Column="6" Minimum="0" Maximum="100" Value="100" Width="90"
+            <Slider x:Name="PositionSlider" Grid.Column="6" Minimum="0" Maximum="1" StepFrequency="0.1"
+                    Margin="0" VerticalAlignment="Center"
+                    PointerPressed="OnSeekStart" PointerReleased="OnSeekEnd">
+                <Slider.Resources>
+                    <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackground" Color="#FFFFB22E" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFF7A1A" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
+                </Slider.Resources>
+            </Slider>
+            <TextBlock x:Name="RemainText" Grid.Column="7" VerticalAlignment="Center" Text="-0:00"
+                       FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                       Foreground="{StaticResource BrandDim}" />
+
+            <!-- Volume: icon toggles mute. -->
+            <Button x:Name="VolumeButton" Grid.Column="8" Content="&#xE767;"
+                    FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnMuteToggle"
+                    Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Mute" />
+            <Slider x:Name="VolumeSlider" Grid.Column="9" Minimum="0" Maximum="100" Value="100" Width="90"
                     VerticalAlignment="Center" ValueChanged="OnVolumeChanged">
                 <Slider.Resources>
                     <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
@@ -56,6 +76,15 @@
                     <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
                 </Slider.Resources>
             </Slider>
+
+            <!-- Resolved-stream badge; amber when lossless (AMBER = signal). -->
+            <Border x:Name="BadgePanel" Grid.Column="10" VerticalAlignment="Center"
+                    BorderBrush="{StaticResource BrandDim}" BorderThickness="1"
+                    CornerRadius="3" Padding="7,3" Visibility="Collapsed">
+                <TextBlock x:Name="BadgeText" Text="" FontFamily="{StaticResource BrandMonoFont}"
+                           FontSize="10" CharacterSpacing="60"
+                           Foreground="{StaticResource BrandDim}" />
+            </Border>
         </Grid>
     </Border>
 </UserControl>

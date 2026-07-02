@@ -21,7 +21,9 @@ public sealed partial class SearchResultsPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         var query = e.Parameter as string ?? "";
+        BusyRing.Visibility = Visibility.Visible;
         await _vm.LoadAsync(query);
+        BusyRing.Visibility = Visibility.Collapsed;
         ArtistsSection.Visibility = _vm.Artists.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         ContainersSection.Visibility = _vm.Containers.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }

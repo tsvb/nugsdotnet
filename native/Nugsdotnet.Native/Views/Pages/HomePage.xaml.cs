@@ -23,7 +23,9 @@ public sealed partial class HomePage : Page
         // Recents are local and fast — show the rail before the artist fetch.
         await _vm.RefreshRecentsAsync();
         RecentSection.Visibility = _vm.Recent.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (_vm.Artists.Count == 0) BusyRing.Visibility = Visibility.Visible;
         await _vm.LoadArtistsAsync();
+        BusyRing.Visibility = Visibility.Collapsed;
     }
 
     private void OnArtistClick(object sender, ItemClickEventArgs e)

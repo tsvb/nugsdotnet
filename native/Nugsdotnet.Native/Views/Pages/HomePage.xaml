@@ -19,7 +19,12 @@
                            FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
                            FontSize="34" CharacterSpacing="20"
                            Foreground="{StaticResource BrandText}" />
-                <TextBlock Foreground="{StaticResource BrandDim}" Text="{Binding Status}" />
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <ProgressRing x:Name="BusyRing" IsActive="True" Visibility="Collapsed"
+                                  Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
+                    <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
+                               Foreground="{StaticResource BrandDim}" />
+                </StackPanel>
 
                 <!-- ── RECENTLY PLAYED — horizontal art-card rail ─────────── -->
                 <StackPanel x:Name="RecentSection" Spacing="10" Visibility="Collapsed">
@@ -54,7 +59,7 @@
                                                        Foreground="{StaticResource BrandText}"
                                                        TextWrapping="Wrap" MaxLines="2"
                                                        TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{x:Bind Artist}"
+                                            <TextBlock Text="{x:Bind Sub}"
                                                        FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
                                                        Foreground="{StaticResource BrandDim}"
                                                        TextTrimming="CharacterEllipsis" />

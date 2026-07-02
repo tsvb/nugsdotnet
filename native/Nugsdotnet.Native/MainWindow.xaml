@@ -5,32 +5,62 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:views="using:Nugsdotnet.Native.Views">
 
-    <Grid Background="{StaticResource BrandBg}">
-        <!-- Logged-out -->
-        <views:LoginView x:Name="LoginPanel" Visibility="Collapsed" />
+    <Grid Background="{StaticResource BrandBg}" RowDefinitions="32,*">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Modifiers="Control" Key="Right" Invoked="OnNextAccelerator" />
+            <KeyboardAccelerator Modifiers="Control" Key="Left" Invoked="OnPreviousAccelerator" />
+            <KeyboardAccelerator Modifiers="Control" Key="Space" Invoked="OnPlayPauseAccelerator" />
+            <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="OnSearchAccelerator" />
+            <KeyboardAccelerator Modifiers="Control" Key="D" Invoked="OnDashboardAccelerator" />
+        </Grid.KeyboardAccelerators>
 
-        <!-- Logged-in shell: topbar faceplate / page frame / transport -->
-        <Grid x:Name="MainPanel" Visibility="Collapsed" RowDefinitions="Auto,*,Auto">
-            <Border Grid.Row="0" Background="{StaticResource BrandSurface}"
-                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,0,0,1">
-                <Grid Padding="14,10" ColumnSpacing="12" ColumnDefinitions="Auto,Auto,*,Auto">
-                    <Button Grid.Column="0" Content="◀" Click="OnBack"
-                            Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Back" />
-                    <Button Grid.Column="1" Content="NUGSDOTNET" Click="OnHome"
-                            Background="Transparent" BorderThickness="0" Padding="4,0"
-                            FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
-                            FontSize="20" CharacterSpacing="40" Foreground="{StaticResource BrandText}" />
-                    <TextBox Grid.Column="2" x:Name="SearchBox" MaxWidth="520"
-                             HorizontalAlignment="Stretch"
-                             PlaceholderText="Search artists, shows, songs…  (Enter to search)"
-                             KeyDown="OnSearchKeyDown" />
-                    <Button Grid.Column="3" Content="sign out" Click="OnSignOut"
-                            Style="{StaticResource IconButtonStyle}" />
+        <!-- Custom title bar: the cabinet runs to the very top of the window.
+             This strip is the drag region (SetTitleBar in code-behind). -->
+        <Border x:Name="TitleBarStrip" Grid.Row="0" Background="Transparent">
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="14,0" VerticalAlignment="Center">
+                <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                        Background="{StaticResource BrandAccent}" />
+                <TextBlock Text="NUGSDOTNET" FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                           CharacterSpacing="180" Foreground="{StaticResource BrandDim}"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <!-- Logged-out -->
+            <views:LoginView x:Name="LoginPanel" Visibility="Collapsed" />
+
+            <!-- Logged-in shell: topbar faceplate / page frame + inspector / transport -->
+            <Grid x:Name="MainPanel" Visibility="Collapsed" RowDefinitions="Auto,*,Auto">
+                <Border Grid.Row="0" Background="{StaticResource BrandSurface}"
+                        BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,0,0,1">
+                    <Grid Padding="14,10" ColumnSpacing="12" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                        <Button Grid.Column="0" Content="◀" Click="OnBack"
+                                Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Back" />
+                        <Button Grid.Column="1" Content="NUGSDOTNET" Click="OnHome"
+                                Background="Transparent" BorderThickness="0" Padding="4,0"
+                                FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
+                                FontSize="20" CharacterSpacing="40" Foreground="{StaticResource BrandText}" />
+                        <TextBox Grid.Column="2" x:Name="SearchBox" MaxWidth="520"
+                                 HorizontalAlignment="Stretch"
+                                 PlaceholderText="Search artists, shows, songs…  (Ctrl+F)"
+                                 KeyDown="OnSearchKeyDown" />
+                        <Button Grid.Column="3" x:Name="DashboardButton" Content="&#xE9E9;"
+                                FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnDashboardToggle"
+                                Style="{StaticResource IconButtonStyle}"
+                                ToolTipService.ToolTip="Dashboard (Ctrl+D)" />
+                        <Button Grid.Column="4" Content="sign out" Click="OnSignOut"
+                                Style="{StaticResource IconButtonStyle}" />
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                    <Frame Grid.Column="0" x:Name="ContentFrame" />
+                    <views:DashboardView Grid.Column="1" x:Name="Dashboard" Visibility="Collapsed" />
                 </Grid>
-            </Border>
 
-            <Frame Grid.Row="1" x:Name="ContentFrame" />
-            <views:TransportView Grid.Row="2" />
+                <views:TransportView Grid.Row="2" x:Name="Transport" />
+            </Grid>
         </Grid>
     </Grid>
 </Window>
