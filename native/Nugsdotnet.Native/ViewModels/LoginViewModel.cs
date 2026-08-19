@@ -3,19 +3,20 @@ using Nugsdotnet.Native.Core;
 
 namespace Nugsdotnet.Native.ViewModels;
 
-/// <summary>
-/// Login form state. Mirrors the original's "use credentials from env" toggle:
-/// when checked, reads NUGS_EMAIL / NUGS_PASSWORD; otherwise uses the typed fields.
-/// </summary>
+/// <summary>Login form state. Credentials come only from the typed fields —
+/// the process environment is never read for a password.</summary>
 public partial class LoginViewModel : ObservableObject
 {
     private readonly NugsAuth _auth;
 
-    [ObservableProperty] private bool useEnv = true;
     [ObservableProperty] private string email = "";
     [ObservableProperty] private string password = "";
-    [ObservableProperty] private bool busy;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FieldsEnabled))]
+    private bool busy;
     [ObservableProperty] private string? error;
+
+    public bool FieldsEnabled => !Busy;
 
     public LoginViewModel(NugsAuth auth) => _auth = auth;
 
@@ -27,14 +28,14 @@ public partial class LoginViewModel : ObservableObject
         Error = null;
         try
         {
-            var e = UseEnv ? Environment.GetEnvironmentVariable("NUGS_EMAIL") : Email;
-            var p = UseEnv ? Environment.GetEnvironmentVariable("NUGS_PASSWORD") : Password;
+            var e = Email.Trim();
+            var p = Password;
             if (string.IsNullOrEmpty(e) || string.IsNullOrEmpty(p))
             {
-                Error = "missing credentials";
+                Error = "Enter email and password.";
                 return false;
             }
-            await _auth.LoginAsync(e!, p!);
+            await _auth.LoginAsync(e, p);
             Password = "";
             return true;
         }

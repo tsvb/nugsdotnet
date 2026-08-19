@@ -86,12 +86,10 @@ Requires the **.NET 10 SDK** on Windows 10 2004+ / Windows 11 (x64 or arm64). No
 MAUI workload is needed — the Windows App SDK is pure NuGet.
 
 ```powershell
-# credentials via environment (the login screen's default), or type them in the UI
-$env:NUGS_EMAIL = "you@example.com"
-$env:NUGS_PASSWORD = "your-password"
-
 dotnet run --project native\Nugsdotnet.Native\Nugsdotnet.Native.csproj
 ```
+
+Sign in with your nugs.net email and password on the login form.
 
 Then: sign in → search a band/song → press ▶ on a result → confirm audio, seek, and
 volume. That single path exercises auth → catalog → stream-resolve →

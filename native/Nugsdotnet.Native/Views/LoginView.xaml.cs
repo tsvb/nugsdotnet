@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Nugsdotnet.Native.ViewModels;
+using Windows.System;
 
 namespace Nugsdotnet.Native.Views;
 
@@ -24,8 +26,21 @@ public sealed partial class LoginView : UserControl
     private void OnPasswordChanged(object sender, RoutedEventArgs e) =>
         _vm.Password = PasswordInput.Password;
 
-    private async void OnSignIn(object sender, RoutedEventArgs e)
+    private void OnCredentialKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (e.Key != VirtualKey.Enter) return;
+        e.Handled = true;
+        _ = SubmitAsync();
+    }
+
+    private async void OnSignIn(object sender, RoutedEventArgs e) => await SubmitAsync();
+
+    private async Task SubmitAsync()
+    {
+        // Read the controls directly: TextBox TwoWay bindings update on lost
+        // focus, so Enter-from-the-email-field would otherwise submit stale text.
+        _vm.Email = EmailInput.Text ?? "";
+        _vm.Password = PasswordInput.Password;
         if (await _vm.SignInAsync())
         {
             PasswordInput.Password = "";
