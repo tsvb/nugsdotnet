@@ -10,28 +10,28 @@ public sealed record PlaybackSnapshot(
 
 /// <summary>
 /// File-backed playback state for resume-on-launch. Plain JSON (track ids and
-/// titles, nothing sensitive) at %LOCALAPPDATA%\nugsdotnet\playback.json — same
-/// locking discipline as the other stores. Has a synchronous save because the
-/// final write happens in the window's Closed handler.
+/// titles, nothing sensitive) at
+/// %LOCALAPPDATA%\nugsdotnet\accounts\{userId}\playback.json — same locking
+/// discipline as the other stores. Has a synchronous save because the final
+/// write happens in the window's Closed handler.
 /// </summary>
 public sealed class PlaybackStateStore
 {
-    private readonly string _path;
+    private readonly AccountLocalStore? _accounts;
+    private readonly string? _fixedPath;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    /// <summary>Default location: %LOCALAPPDATA%\nugsdotnet\playback.json.</summary>
-    public PlaybackStateStore()
-        : this(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "nugsdotnet", "playback.json"))
-    {
-    }
+    /// <summary>Account-scoped store used by the app. Empty until Bind.</summary>
+    public PlaybackStateStore(AccountLocalStore accounts) => _accounts = accounts;
 
+    /// <summary>Fixed path — tests and one-off tools.</summary>
     public PlaybackStateStore(string path)
     {
-        _path = path;
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        _fixedPath = path;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
     }
+
+    private string? ResolvePath() => _fixedPath ?? _accounts?.File(NugsLocalPaths.PlaybackFileName);
 
     /// <summary>Null when there's nothing to resume (missing/corrupt/empty queue).</summary>
     public async Task<PlaybackSnapshot?> LoadAsync(CancellationToken ct = default)
@@ -39,8 +39,9 @@ public sealed class PlaybackStateStore
         await _lock.WaitAsync(ct);
         try
         {
-            if (!File.Exists(_path)) return null;
-            await using var fs = File.OpenRead(_path);
+            var path = ResolvePath();
+            if (path is null || !File.Exists(path)) return null;
+            await using var fs = File.OpenRead(path);
             var snap = await JsonSerializer.DeserializeAsync<PlaybackSnapshot>(fs, cancellationToken: ct);
             return IsUsable(snap) ? snap : null;
         }
@@ -60,7 +61,10 @@ public sealed class PlaybackStateStore
         await _lock.WaitAsync(ct);
         try
         {
-            await AtomicFile.WriteAsync(_path, JsonSerializer.SerializeToUtf8Bytes(snapshot), ct);
+            var path = ResolvePath();
+            if (path is null) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await AtomicFile.WriteAsync(path, JsonSerializer.SerializeToUtf8Bytes(snapshot), ct);
         }
         catch
         {
@@ -77,7 +81,10 @@ public sealed class PlaybackStateStore
         _lock.Wait();
         try
         {
-            AtomicFile.Write(_path, JsonSerializer.SerializeToUtf8Bytes(snapshot));
+            var path = ResolvePath();
+            if (path is null) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            AtomicFile.Write(path, JsonSerializer.SerializeToUtf8Bytes(snapshot));
         }
         catch
         {

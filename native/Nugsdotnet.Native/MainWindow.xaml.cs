@@ -34,8 +34,8 @@ public sealed partial class MainWindow : Window
         Transport.AlbumRequested += id => ContentFrame.Navigate(typeof(AlbumPage), id);
         LoginPanel.LoggedIn += async (_, _) =>
         {
-            await _shell.InitializeAsync();
-            await _player.RestoreAsync();   // idempotent — first login on this box
+            await _shell.InitializeAsync();   // Bind stash/recents/playback to this nugs user
+            await _player.RestoreAsync();
             ShowMain();
         };
         Closed += (_, _) => SaveWindowState();
@@ -133,7 +133,9 @@ public sealed partial class MainWindow : Window
 
     private async void OnSignOut(object sender, RoutedEventArgs e)
     {
+        _player.SaveNow();   // persist this account's queue while still bound
         _player.Stop();
+        App.Services.GetRequiredService<HomeViewModel>().ResetRails();
         await _shell.SignOutAsync();
         ContentFrame.Content = null;
         ContentFrame.BackStack.Clear();   // don't let Back reveal the previous session

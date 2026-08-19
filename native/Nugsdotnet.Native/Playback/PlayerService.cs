@@ -260,6 +260,7 @@ public sealed class PlayerService
         CurrentPick = null;
         CurrentStream = null;
         Status = null;
+        _restored = false;   // next sign-in may restore a different account's queue
         _player.Pause();
         _player.Source = null;
     }
@@ -380,7 +381,8 @@ public sealed class PlayerService
     /// <summary>
     /// Loads the previous session's queue primed-but-paused: the transport shows
     /// the track and the first play resolves it and lands on the saved position.
-    /// Runs at most once; a queue the user already started wins over the snapshot.
+    /// Runs at most once per signed-in account (Stop on sign-out clears the flag);
+    /// a queue the user already started wins over the snapshot.
     /// </summary>
     public async Task RestoreAsync()
     {

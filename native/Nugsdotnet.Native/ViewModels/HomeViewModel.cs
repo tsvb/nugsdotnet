@@ -85,6 +85,15 @@ public partial class HomeViewModel : ObservableObject
         _ = LoadArtsAsync(Recent.Concat(Stash).ToList());   // ImageLoader never throws
     }
 
+    /// <summary>Drops rail cards so a signed-out shell cannot flash the previous
+    /// nugs account's stash/recents.</summary>
+    public void ResetRails()
+    {
+        Recent.Clear();
+        Stash.Clear();
+        StashLabel = "STASH";
+    }
+
     public async Task LoadArtistsAsync()
     {
         if (_all.Count > 0) return;   // singleton — cached for the session

@@ -10,28 +10,29 @@ public sealed record StashEntry(
 /// <summary>
 /// File-backed local stash (favorites). nugs' legacy API exposes no
 /// favorites/stash surface (verified against the community clients), so this is
-/// local-first by design: plain JSON at %LOCALAPPDATA%\nugsdotnet\stash.json,
-/// newest-added first, no cap — it's the user's library, not a rail buffer.
-/// Same locking discipline as the other stores.
+/// local-first by design: newest-added first, no cap — it's the user's library,
+/// not a rail buffer. Files live under
+/// %LOCALAPPDATA%\nugsdotnet\accounts\{userId}\stash.json so two nugs logins on
+/// the same Windows profile do not share a stash. Same locking discipline as
+/// the other stores.
 /// </summary>
 public sealed class StashStore
 {
-    private readonly string _path;
+    private readonly AccountLocalStore? _accounts;
+    private readonly string? _fixedPath;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    /// <summary>Default location: %LOCALAPPDATA%\nugsdotnet\stash.json.</summary>
-    public StashStore()
-        : this(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "nugsdotnet", "stash.json"))
-    {
-    }
+    /// <summary>Account-scoped store used by the app. Empty until Bind.</summary>
+    public StashStore(AccountLocalStore accounts) => _accounts = accounts;
 
+    /// <summary>Fixed path — tests and one-off tools.</summary>
     public StashStore(string path)
     {
-        _path = path;
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        _fixedPath = path;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
     }
+
+    private string? ResolvePath() => _fixedPath ?? _accounts?.File(NugsLocalPaths.StashFileName);
 
     public async Task<IReadOnlyList<StashEntry>> LoadAsync(CancellationToken ct = default)
     {
@@ -63,6 +64,7 @@ public sealed class StashStore
         await _lock.WaitAsync(ct);
         try
         {
+            if (ResolvePath() is null) return false;
             var (merged, stashed) = Toggle(await LoadUnlockedAsync(ct), entry);
             try
             {
@@ -88,7 +90,9 @@ public sealed class StashStore
     /// </summary>
     private async Task WriteAtomicAsync(List<StashEntry> entries, CancellationToken ct)
     {
-        await AtomicFile.WriteAsync(_path, JsonSerializer.SerializeToUtf8Bytes(entries), ct);
+        var path = ResolvePath() ?? throw new InvalidOperationException("stash is not bound to an account");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await AtomicFile.WriteAsync(path, JsonSerializer.SerializeToUtf8Bytes(entries), ct);
     }
 
     /// <summary>Pure toggle: remove when present, else insert front (newest first).</summary>
@@ -105,8 +109,9 @@ public sealed class StashStore
     {
         try
         {
-            if (!File.Exists(_path)) return Array.Empty<StashEntry>();
-            await using var fs = File.OpenRead(_path);
+            var path = ResolvePath();
+            if (path is null || !File.Exists(path)) return Array.Empty<StashEntry>();
+            await using var fs = File.OpenRead(path);
             return await JsonSerializer.DeserializeAsync<List<StashEntry>>(fs, cancellationToken: ct)
                 ?? (IReadOnlyList<StashEntry>)Array.Empty<StashEntry>();
         }

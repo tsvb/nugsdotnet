@@ -36,8 +36,9 @@ needs editing to bump the version.
 
 Upgrades replace the retired MAUI-era install in place: the installer keeps
 the same `AppId`, and clears the app directory on install (the exe name
-changed across the MAUI→native transition). User data is untouched — session,
-recents, and playback state live in `%LOCALAPPDATA%\nugsdotnet`.
+changed across the MAUI→native transition). User data is untouched — session
+lives in `%LOCALAPPDATA%\nugsdotnet`; stash, recents, and playback state live
+per nugs account under `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}`.
 
 ## Install locally
 

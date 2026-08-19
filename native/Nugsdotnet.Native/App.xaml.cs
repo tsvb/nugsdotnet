@@ -45,9 +45,10 @@ public partial class App : Application
         sc.AddSingleton<NugsAuth>();
         sc.AddSingleton<NugsCatalog>();
         sc.AddSingleton<NugsStreamResolver>();
-        sc.AddSingleton<RecentsStore>();
-        sc.AddSingleton<StashStore>();
-        sc.AddSingleton<PlaybackStateStore>();
+        sc.AddSingleton<AccountLocalStore>();
+        sc.AddSingleton(sp => new RecentsStore(sp.GetRequiredService<AccountLocalStore>()));
+        sc.AddSingleton(sp => new StashStore(sp.GetRequiredService<AccountLocalStore>()));
+        sc.AddSingleton(sp => new PlaybackStateStore(sp.GetRequiredService<AccountLocalStore>()));
         sc.AddSingleton<ImageLoader>();
 
         // Playback + view models. Home is a singleton so the artist list and
