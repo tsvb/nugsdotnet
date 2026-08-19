@@ -15,9 +15,9 @@ public partial class ArtistViewModel : ObservableObject
     public ObservableCollection<ShowCard> Releases { get; } = new();
     public ObservableCollection<ContainerEntry> Shows { get; } = new();
 
-    [ObservableProperty] private string? artistName;
-    [ObservableProperty] private bool busy;
-    [ObservableProperty] private string? status;
+    [ObservableProperty] public partial string? ArtistName { get; set; }
+    [ObservableProperty] public partial bool Busy { get; set; }
+    [ObservableProperty] public partial string? Status { get; set; };
 
     public ArtistViewModel(NugsCatalog catalog, ImageLoader images)
     {

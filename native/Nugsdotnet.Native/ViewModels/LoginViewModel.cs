@@ -9,12 +9,12 @@ public partial class LoginViewModel : ObservableObject
 {
     private readonly NugsAuth _auth;
 
-    [ObservableProperty] private string email = "";
-    [ObservableProperty] private string password = "";
+    [ObservableProperty] public partial string Email { get; set; } = "";
+    [ObservableProperty] public partial string Password { get; set; } = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FieldsEnabled))]
-    private bool busy;
-    [ObservableProperty] private string? error;
+    public partial bool Busy { get; set; }
+    [ObservableProperty] public partial string? Error { get; set; };
 
     public bool FieldsEnabled => !Busy;
 

@@ -14,7 +14,7 @@ public sealed partial class ShowCard : ObservableObject
     public string? Sub { get; }
     private readonly string? _imagePath;
 
-    [ObservableProperty] private ImageSource? art;
+    [ObservableProperty] public partial ImageSource? Art { get; set; };
 
     public ShowCard(string containerId, string? title, string? sub, string? imagePath)
     {
@@ -53,12 +53,12 @@ public partial class HomeViewModel : ObservableObject
     public ObservableCollection<ShowCard> Recent { get; } = new();
     public ObservableCollection<ShowCard> Stash { get; } = new();
 
-    [ObservableProperty] private string filter = "";
-    [ObservableProperty] private bool busy;
-    [ObservableProperty] private string? status;
-    [ObservableProperty] private string greeting = "WELCOME BACK";
-    [ObservableProperty] private string artistsLabel = "ARTISTS";
-    [ObservableProperty] private string stashLabel = "STASH";
+    [ObservableProperty] public partial string Filter { get; set; } = "";
+    [ObservableProperty] public partial bool Busy { get; set; }
+    [ObservableProperty] public partial string? Status { get; set; }
+    [ObservableProperty] public partial string Greeting { get; set; } = "WELCOME BACK";
+    [ObservableProperty] public partial string ArtistsLabel { get; set; } = "ARTISTS";
+    [ObservableProperty] public partial string StashLabel { get; set; } = "STASH";
 
     public HomeViewModel(NugsCatalog catalog, RecentsStore recents, StashStore stash, ImageLoader images)
     {
