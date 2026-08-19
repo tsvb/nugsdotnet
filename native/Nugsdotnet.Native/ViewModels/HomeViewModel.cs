@@ -14,7 +14,7 @@ public sealed partial class ShowCard : ObservableObject
     public string? Sub { get; }
     private readonly string? _imagePath;
 
-    [ObservableProperty] public partial ImageSource? Art { get; set; };
+    [ObservableProperty] public partial ImageSource? Art { get; set; }
 
     public ShowCard(string containerId, string? title, string? sub, string? imagePath)
     {

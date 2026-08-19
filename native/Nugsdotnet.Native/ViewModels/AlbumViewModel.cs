@@ -17,7 +17,7 @@ public sealed partial class TrackItem : ObservableObject
     public string Display => Track.Display;
     public string? RunTime => Track.RunTime;
 
-    [ObservableProperty] public partial bool IsNowPlaying { get; set; };
+    [ObservableProperty] public partial bool IsNowPlaying { get; set; }
 
     /// <summary>x:Bind function binding — AMBER = signal / now-playing.</summary>
     public Brush RowForeground(bool nowPlaying) =>
@@ -52,7 +52,7 @@ public partial class AlbumViewModel : ObservableObject
     [ObservableProperty] public partial ImageSource? Cover { get; set; }
     [ObservableProperty] public partial bool Busy { get; set; }
     [ObservableProperty] public partial string? Status { get; set; }
-    [ObservableProperty] public partial bool IsStashed { get; set; };
+    [ObservableProperty] public partial bool IsStashed { get; set; }
 
     public AlbumViewModel(
         NugsCatalog catalog, PlayerService player, ImageLoader images,

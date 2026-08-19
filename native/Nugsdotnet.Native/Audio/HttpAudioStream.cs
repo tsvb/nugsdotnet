@@ -208,7 +208,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
         }
         if (read == max) return buf;
         var slice = new byte[read];
-        Buffer.BlockCopy(buf, 0, slice, 0, read);
+        System.Buffer.BlockCopy(buf, 0, slice, 0, read);
         return slice;
     }
 }

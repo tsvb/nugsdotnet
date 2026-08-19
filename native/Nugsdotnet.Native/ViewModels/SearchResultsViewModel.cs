@@ -14,7 +14,7 @@ public partial class SearchResultsViewModel : ObservableObject
 
     [ObservableProperty] public partial string? Heading { get; set; }
     [ObservableProperty] public partial bool Busy { get; set; }
-    [ObservableProperty] public partial string? Status { get; set; };
+    [ObservableProperty] public partial string? Status { get; set; }
 
     public SearchResultsViewModel(NugsCatalog catalog) => _catalog = catalog;
 

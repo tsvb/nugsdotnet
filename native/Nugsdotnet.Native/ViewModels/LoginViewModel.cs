@@ -14,7 +14,7 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FieldsEnabled))]
     public partial bool Busy { get; set; }
-    [ObservableProperty] public partial string? Error { get; set; };
+    [ObservableProperty] public partial string? Error { get; set; }
 
     public bool FieldsEnabled => !Busy;
 

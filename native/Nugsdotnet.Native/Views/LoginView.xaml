@@ -26,15 +26,10 @@
                     <TextBlock Text="EMAIL" Style="{StaticResource FaceplateLabelStyle}" />
                     <TextBox x:Name="EmailInput"
                              PlaceholderText="you@example.com"
+                             InputScope="EmailSmtpAddress"
                              IsSpellCheckEnabled="False"
                              IsEnabled="{Binding FieldsEnabled}"
-                             KeyDown="OnCredentialKeyDown">
-                        <TextBox.InputScope>
-                            <InputScope>
-                                <InputScopeName NameValue="EmailSmtpAddress" />
-                            </InputScope>
-                        </TextBox.InputScope>
-                    </TextBox>
+                             KeyDown="OnCredentialKeyDown" />
                 </StackPanel>
 
                 <StackPanel Spacing="6">

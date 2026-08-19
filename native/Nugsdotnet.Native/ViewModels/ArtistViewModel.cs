@@ -17,7 +17,7 @@ public partial class ArtistViewModel : ObservableObject
 
     [ObservableProperty] public partial string? ArtistName { get; set; }
     [ObservableProperty] public partial bool Busy { get; set; }
-    [ObservableProperty] public partial string? Status { get; set; };
+    [ObservableProperty] public partial string? Status { get; set; }
 
     public ArtistViewModel(NugsCatalog catalog, ImageLoader images)
     {
