@@ -19,6 +19,7 @@ public sealed partial class LoginView : UserControl
         InitializeComponent();
         _vm = App.Services.GetRequiredService<LoginViewModel>();
         DataContext = _vm;
+        Loaded += (_, _) => EmailInput.Focus(FocusState.Programmatic);
     }
 
     // PasswordBox.Password doesn't round-trip through a binding reliably, so we

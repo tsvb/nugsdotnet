@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- WinUI TextBox / PasswordBox theme keys — RECEIVER '74 instead of Fluent
+         gray/blue. Merged into both Default and Dark so either resolved theme
+         picks them up (same trick as the Slider overrides in App.xaml). -->
+    <SolidColorBrush x:Key="TextControlBackground" Color="#FF1F1A12" />
+    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF1F1A12" />
+    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FF100B05" />
+    <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="#FF15120D" />
+    <SolidColorBrush x:Key="TextControlForeground" Color="#FFEFE4CF" />
+    <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFEFE4CF" />
+    <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFEFE4CF" />
+    <SolidColorBrush x:Key="TextControlForegroundDisabled" Color="#FF9A8B6E" />
+    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#FF3A3024" />
+    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#FF9A8B6E" />
+    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FFFFB22E" />
+    <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="#FF3A3024" />
+    <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#FF9A8B6E" />
+    <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#FF9A8B6E" />
+    <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#FF9A8B6E" />
+    <SolidColorBrush x:Key="TextControlHeaderForeground" Color="#FF9A8B6E" />
+    <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#66FFB22E" />
+    <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="#FFFFB22E" />
+</ResourceDictionary>

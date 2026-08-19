@@ -18,6 +18,9 @@
                      brushes are ordinary theme resources and DO override, so the seek/volume
                      fills + thumbs read amber. -->
                 <ResourceDictionary x:Key="Default">
+                    <ResourceDictionary.MergedDictionaries>
+                        <ResourceDictionary Source="ms-appx:///Themes/ControlBrushes.xaml" />
+                    </ResourceDictionary.MergedDictionaries>
                     <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
                     <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
                     <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />
@@ -26,6 +29,9 @@
                     <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FFFF7A1A" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
+                    <ResourceDictionary.MergedDictionaries>
+                        <ResourceDictionary Source="ms-appx:///Themes/ControlBrushes.xaml" />
+                    </ResourceDictionary.MergedDictionaries>
                     <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FFFFB22E" />
                     <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFF7A1A" />
                     <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FFFF7A1A" />

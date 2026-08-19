@@ -5,31 +5,54 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Grid Background="{StaticResource BrandBg}">
-        <Border MaxWidth="400" HorizontalAlignment="Center" VerticalAlignment="Center"
+        <Border MaxWidth="420" HorizontalAlignment="Center" VerticalAlignment="Center"
                 Background="{StaticResource BrandSurface}" BorderBrush="{StaticResource BrandBorder}"
-                BorderThickness="1" CornerRadius="8" Padding="28">
-            <StackPanel Spacing="12">
-                <TextBlock Text="NUGSDOTNET" FontFamily="{StaticResource BrandDisplayFont}"
-                           FontWeight="ExtraBold" FontSize="32" CharacterSpacing="40"
-                           Foreground="{StaticResource BrandText}" />
-                <TextBlock Text="native Windows client" Margin="0,-6,0,8" FontSize="12"
-                           FontFamily="{StaticResource BrandMonoFont}" Foreground="{StaticResource BrandDim}" />
+                BorderThickness="1" CornerRadius="8" Padding="32,28">
+            <StackPanel Spacing="16">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                Background="{StaticResource BrandAccent}" />
+                        <TextBlock Text="SIGN IN" Style="{StaticResource FaceplateLabelStyle}" />
+                    </StackPanel>
+                    <TextBlock Text="NUGSDOTNET" FontFamily="{StaticResource BrandDisplayFont}"
+                               FontWeight="ExtraBold" FontSize="36" CharacterSpacing="40"
+                               Foreground="{StaticResource BrandText}" />
+                    <TextBlock Text="nugs.net account" FontFamily="{StaticResource BrandMonoFont}"
+                               FontSize="12" Foreground="{StaticResource BrandDim}" />
+                </StackPanel>
 
-                <TextBox x:Name="EmailInput" Header="Email"
-                         Text="{Binding Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         PlaceholderText="you@example.com"
-                         IsEnabled="{Binding FieldsEnabled}"
-                         KeyDown="OnCredentialKeyDown" />
-                <PasswordBox x:Name="PasswordInput" Header="Password"
+                <StackPanel Spacing="6">
+                    <TextBlock Text="EMAIL" Style="{StaticResource FaceplateLabelStyle}" />
+                    <TextBox x:Name="EmailInput"
+                             PlaceholderText="you@example.com"
+                             IsSpellCheckEnabled="False"
                              IsEnabled="{Binding FieldsEnabled}"
-                             PasswordChanged="OnPasswordChanged"
-                             KeyDown="OnCredentialKeyDown" />
+                             KeyDown="OnCredentialKeyDown">
+                        <TextBox.InputScope>
+                            <InputScope>
+                                <InputScopeName NameValue="EmailSmtpAddress" />
+                            </InputScope>
+                        </TextBox.InputScope>
+                    </TextBox>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="PASSWORD" Style="{StaticResource FaceplateLabelStyle}" />
+                    <PasswordBox x:Name="PasswordInput"
+                                 IsEnabled="{Binding FieldsEnabled}"
+                                 PasswordChanged="OnPasswordChanged"
+                                 KeyDown="OnCredentialKeyDown" />
+                </StackPanel>
 
                 <Button x:Name="SignInButton" Content="Sign in" Click="OnSignIn"
                         Style="{StaticResource PlayButtonStyle}" HorizontalAlignment="Stretch"
+                        Margin="0,4,0,0"
                         IsEnabled="{Binding FieldsEnabled}" />
 
-                <TextBlock Text="{Binding Error}" Foreground="#FFEF4444" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Error}"
+                           FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                           Foreground="{StaticResource BrandAccent2}" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
     </Grid>
