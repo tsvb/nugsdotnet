@@ -85,6 +85,15 @@ public partial class HomeViewModel : ObservableObject
         _ = LoadArtsAsync(Recent.Concat(Stash).ToList());   // ImageLoader never throws
     }
 
+    /// <summary>Drops rail cards so a signed-out shell cannot flash the previous
+    /// nugs account's stash/recents.</summary>
+    public void ResetRails()
+    {
+        Recent.Clear();
+        Stash.Clear();
+        StashLabel = "STASH";
+    }
+
     public async Task LoadArtistsAsync()
     {
         if (_all.Count > 0) return;   // singleton — cached for the session
@@ -99,7 +108,7 @@ public partial class HomeViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Status = ex.Message;
+            Status = UserError.From(ex);
         }
         finally
         {
@@ -109,7 +118,8 @@ public partial class HomeViewModel : ObservableObject
 
     private async Task LoadArtsAsync(IReadOnlyList<ShowCard> cards)
     {
-        foreach (var card in cards) await card.LoadArtAsync(_images);
+        // Overlap CDN fetches; BitmapImage decode still resumes on the UI thread.
+        await Task.WhenAll(cards.Select(c => c.LoadArtAsync(_images)));
     }
 
     partial void OnFilterChanged(string value) => ApplyFilter();

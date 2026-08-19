@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -48,40 +49,68 @@ public sealed class NugsStreamResolver
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
         NugsAuth.SetUA(req, NugsConstants.LegacyUserAgent);  // legacy endpoints use a different UA
-        using var res = await _http.SendAsync(req, ct);
+        using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         if (!res.IsSuccessStatusCode) return null;
         // Legacy *.aspx may not send application/json; parse the body directly.
-        var body = await res.Content.ReadAsStringAsync(ct);
+        string body;
+        try
+        {
+            body = await BoundedContent.ReadStringAsync(res, BoundedContent.StreamProbe, ct);
+        }
+        catch
+        {
+            return null;
+        }
         using var doc = JsonDocument.Parse(body);
         var json = doc.RootElement;
         if (json.TryGetProperty("streamLink", out var s) ||
             json.TryGetProperty("StreamLink", out s))
         {
             var link = s.GetString();
-            return string.IsNullOrEmpty(link) ? null : link;
+            // CDN URL is untrusted input from the API — refuse anything that
+            // isn't a public https URL before the player fetches it.
+            return NugsUri.IsSafeHttps(link, out _) ? link : null;
         }
         return null;
     }
 
-    /// <summary>Probes every device tier and returns the best available pick.</summary>
+    /// <summary>Probes every device tier in parallel and returns the best
+    /// available pick. Stops early once the top-preference format (FLAC) lands
+    /// so a typical play doesn't wait on the lossy tiers.</summary>
     public async Task<StreamPick?> ResolveBestStreamAsync(
         string trackId, Session session, CancellationToken ct = default)
     {
-        var available = new List<StreamPick>();
-        foreach (var p in NugsConstants.ProbePlatforms)
+        var available = new ConcurrentBag<StreamPick>();
+        using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var tasks = NugsConstants.ProbePlatforms.Select(async p =>
         {
             try
             {
-                var url = await GetStreamUrlAsync(trackId, p, session, ct);
-                if (string.IsNullOrEmpty(url)) continue;
-                available.Add(new StreamPick(url, p, IdentifyFormat(url)));
+                var url = await GetStreamUrlAsync(trackId, p, session, probeCts.Token);
+                if (string.IsNullOrEmpty(url)) return;
+                var pick = new StreamPick(url, p, IdentifyFormat(url));
+                available.Add(pick);
+                if (pick.Format == Preference[0])
+                    probeCts.Cancel();   // FLAC — remaining tiers are wasted work
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when a better pick already landed, or the caller cancelled.
             }
             catch
             {
                 // A single tier failing is expected; keep probing the rest.
             }
+        });
+        try
+        {
+            await Task.WhenAll(tasks);
         }
-        return PickBest(available);
+        catch (OperationCanceledException)
+        {
+            // WhenAll surfaces OCE if a task faulted with it before we caught it.
+        }
+        return PickBest(available.ToArray());
     }
 
     /// <summary>Pure preference selection over a probed set. Null if empty.</summary>

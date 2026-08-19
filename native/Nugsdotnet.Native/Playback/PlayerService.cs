@@ -241,6 +241,30 @@ public sealed class PlayerService
         JumpTo(target);
     }
 
+    /// <summary>Halt playback and drop the in-memory queue. Used on sign-out so
+    /// a live stream does not keep playing against a cleared session.</summary>
+    public void Stop()
+    {
+        lock (_gate)
+        {
+            _loadToken++;
+            _lookahead = false;
+            if (_list is { } old) old.CurrentItemChanged -= OnCurrentItemChanged;
+            _list = null;
+            _items.Clear();
+            _queue.Clear();
+            _index = -1;
+            _pendingSeek = null;
+            QueueVersion++;
+        }
+        CurrentPick = null;
+        CurrentStream = null;
+        Status = null;
+        _restored = false;   // next sign-in may restore a different account's queue
+        _player.Pause();
+        _player.Source = null;
+    }
+
     public void TogglePlayPause()
     {
         // Resume entry: a restored queue is primed but has no source yet — the
@@ -357,7 +381,8 @@ public sealed class PlayerService
     /// <summary>
     /// Loads the previous session's queue primed-but-paused: the transport shows
     /// the track and the first play resolves it and lands on the saved position.
-    /// Runs at most once; a queue the user already started wins over the snapshot.
+    /// Runs at most once per signed-in account (Stop on sign-out clears the flag);
+    /// a queue the user already started wins over the snapshot.
     /// </summary>
     public async Task RestoreAsync()
     {
@@ -469,10 +494,10 @@ public sealed class PlayerService
             Status = null;
             _ = EnsureLookaheadAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             lock (_gate) { if (_loadToken != token) return; }
-            Status = ex.Message;   // network/probe error — stop here, user can retry/skip
+            Status = "Couldn't resolve stream.";   // don't leak URLs / HTTP guts
         }
         finally
         {
@@ -556,7 +581,7 @@ public sealed class PlayerService
             // segment fetches carry the CDN's required Referer/UA via a
             // header-carrying WinRT HttpClient (System.Net.Http can't be handed
             // to AdaptiveMediaSource).
-            if (!Uri.TryCreate(pick.Url, UriKind.Absolute, out var uri)) return null;
+            if (!NugsUri.IsSafeHttps(pick.Url, out var uri)) return null;
             var created = await AdaptiveMediaSource.CreateFromUriAsync(uri, HlsHttp);
             if (created.Status != AdaptiveMediaSourceCreationStatus.Success) return null;
             return new Resolved(
@@ -599,12 +624,6 @@ public sealed class PlayerService
     }
 
     /// <summary>Absolute art URL, resolving catalog-relative paths like ImageLoader does.</summary>
-    private static Uri? ArtUri(string? pathOrUrl)
-    {
-        if (string.IsNullOrEmpty(pathOrUrl)) return null;
-        var url = pathOrUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? pathOrUrl
-            : $"{NugsConstants.ImageCdnBase}{pathOrUrl}?h=400";
-        return Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri : null;
-    }
+    private static Uri? ArtUri(string? pathOrUrl) =>
+        NugsUri.IsSafeHttps(NugsUri.ResolveImageUrl(pathOrUrl), out var uri) ? uri : null;
 }

@@ -20,8 +20,10 @@ public sealed record StreamPick(string Url, int PlatformId, AudioFormat Format);
 
 // --- token / session wire + persistence shapes --------------------------------
 
-/// <summary>OAuth token response from id.nugs.net (wire names are lowercase).</summary>
-internal sealed record TokenResponse(string access_token, string refresh_token, int expires_in);
+/// <summary>OAuth token response from id.nugs.net (wire names are lowercase).
+/// <c>refresh_token</c> is optional on refresh — some IdPs omit it when the
+/// existing token is still valid, and overwriting with empty would lock the user out.</summary>
+internal sealed record TokenResponse(string access_token, string? refresh_token, int expires_in);
 
 public sealed record TokenSet(string AccessToken, string RefreshToken, DateTimeOffset ExpiresAt);
 

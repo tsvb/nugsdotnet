@@ -10,30 +10,29 @@ public sealed record RecentPlay(
 /// <summary>
 /// File-backed "recently played" list feeding the Home dashboard rail. Plain
 /// JSON (titles and CDN art paths, nothing sensitive) at
-/// %LOCALAPPDATA%\nugsdotnet\recents.json — same locking discipline as
-/// <see cref="NugsSessionStore"/>.
+/// %LOCALAPPDATA%\nugsdotnet\accounts\{userId}\recents.json — same locking
+/// discipline as <see cref="NugsSessionStore"/>.
 /// </summary>
 public sealed class RecentsStore
 {
     /// <summary>Rail length on the dashboard — also the persistence cap.</summary>
     public const int Cap = 12;
 
-    private readonly string _path;
+    private readonly AccountLocalStore? _accounts;
+    private readonly string? _fixedPath;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    /// <summary>Default location: %LOCALAPPDATA%\nugsdotnet\recents.json.</summary>
-    public RecentsStore()
-        : this(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "nugsdotnet", "recents.json"))
-    {
-    }
+    /// <summary>Account-scoped store used by the app. Empty until Bind.</summary>
+    public RecentsStore(AccountLocalStore accounts) => _accounts = accounts;
 
+    /// <summary>Fixed path — tests and one-off tools.</summary>
     public RecentsStore(string path)
     {
-        _path = path;
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        _fixedPath = path;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
     }
+
+    private string? ResolvePath() => _fixedPath ?? _accounts?.File(NugsLocalPaths.RecentsFileName);
 
     public async Task<IReadOnlyList<RecentPlay>> LoadAsync(CancellationToken ct = default)
     {
@@ -57,8 +56,11 @@ public sealed class RecentsStore
         await _lock.WaitAsync(ct);
         try
         {
+            var path = ResolvePath();
+            if (path is null) return;
             var merged = Merge(await LoadUnlockedAsync(ct), play);
-            await File.WriteAllBytesAsync(_path, JsonSerializer.SerializeToUtf8Bytes(merged), ct);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await AtomicFile.WriteAsync(path, JsonSerializer.SerializeToUtf8Bytes(merged), ct);
         }
         catch
         {
@@ -86,8 +88,9 @@ public sealed class RecentsStore
     {
         try
         {
-            if (!File.Exists(_path)) return Array.Empty<RecentPlay>();
-            await using var fs = File.OpenRead(_path);
+            var path = ResolvePath();
+            if (path is null || !File.Exists(path)) return Array.Empty<RecentPlay>();
+            await using var fs = File.OpenRead(path);
             return await JsonSerializer.DeserializeAsync<List<RecentPlay>>(fs, cancellationToken: ct)
                 ?? (IReadOnlyList<RecentPlay>)Array.Empty<RecentPlay>();
         }

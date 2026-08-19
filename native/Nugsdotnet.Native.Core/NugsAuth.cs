@@ -1,5 +1,4 @@
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace Nugsdotnet.Native.Core;
@@ -17,6 +16,9 @@ public sealed class NugsAuth
     private readonly NugsSessionStore _store;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
+    /// <summary>Match <c>ReadFromJsonAsync</c>'s web defaults so wire casing stays tolerant.</summary>
+    private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web);
+
     public NugsAuth(HttpClient http, NugsSessionStore store)
     {
         _http = http;
@@ -25,7 +27,7 @@ public sealed class NugsAuth
 
     public async Task LoginAsync(string email, string password, CancellationToken ct = default)
     {
-        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["client_id"] = NugsConstants.ClientId,
             ["grant_type"] = "password",
@@ -38,18 +40,19 @@ public sealed class NugsAuth
         using var res = await _http.SendAsync(req, ct);
         if (!res.IsSuccessStatusCode)
         {
-            var body = await res.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException($"auth failed: {(int)res.StatusCode} {body}");
+            // Status only — the IdP body can echo the username or error_description
+            // and LoginViewModel surfaces this exception to the UI.
+            throw new InvalidOperationException($"sign-in failed ({(int)res.StatusCode})");
         }
-        var token = await res.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken: ct)
-            ?? throw new InvalidOperationException("empty token response");
+        var token = await ReadTokenAsync(res, ct);
+        if (string.IsNullOrEmpty(token.refresh_token))
+            throw new InvalidOperationException("sign-in failed (no refresh token)");
 
         var userId = await GetUserIdAsync(token.access_token, ct);
         var sub = await GetSubInfoAsync(token.access_token, ct);
 
         await _store.SaveAsync(new PersistedSession(
-            new TokenSet(token.access_token, token.refresh_token,
-                DateTimeOffset.UtcNow.AddSeconds(token.expires_in - 60)),
+            new TokenSet(token.access_token, token.refresh_token, ExpiresAt(token.expires_in)),
             userId, sub), ct);
     }
 
@@ -61,6 +64,10 @@ public sealed class NugsAuth
         {
             var s = await GetSessionAsync(ct);
             return new SessionInfo(true, s.UserId, s.PlanDescription, s.IsAccessible);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {
@@ -88,7 +95,7 @@ public sealed class NugsAuth
             if (DateTimeOffset.UtcNow < state.Tokens.ExpiresAt)
                 return Session.From(state);
 
-            var form = new FormUrlEncodedContent(new Dictionary<string, string>
+            using var form = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["client_id"] = NugsConstants.ClientId,
                 ["grant_type"] = "refresh_token",
@@ -97,14 +104,19 @@ public sealed class NugsAuth
             using var req = new HttpRequestMessage(HttpMethod.Post, NugsConstants.AuthUrl) { Content = form };
             SetUA(req, NugsConstants.MobileUserAgent);
             using var res = await _http.SendAsync(req, ct);
-            res.EnsureSuccessStatusCode();
-            var token = await res.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken: ct)
-                ?? throw new InvalidOperationException("empty refresh response");
+            if (!res.IsSuccessStatusCode)
+                throw new InvalidOperationException($"token refresh failed ({(int)res.StatusCode})");
+            var token = await ReadTokenAsync(res, ct);
+
+            // Some IdPs omit refresh_token on rotation-less refresh. Keep the
+            // one we already have rather than persisting an empty string.
+            var refresh = string.IsNullOrEmpty(token.refresh_token)
+                ? state.Tokens.RefreshToken
+                : token.refresh_token;
 
             var refreshed = state with
             {
-                Tokens = new TokenSet(token.access_token, token.refresh_token,
-                    DateTimeOffset.UtcNow.AddSeconds(token.expires_in - 60))
+                Tokens = new TokenSet(token.access_token, refresh, ExpiresAt(token.expires_in))
             };
             await _store.SaveAsync(refreshed, ct);
             return Session.From(refreshed);
@@ -122,8 +134,8 @@ public sealed class NugsAuth
         SetUA(req, NugsConstants.MobileUserAgent);
         using var res = await _http.SendAsync(req, ct);
         res.EnsureSuccessStatusCode();
-        var json = await res.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
-        return json.GetProperty("sub").GetString()
+        using var doc = JsonDocument.Parse(await BoundedContent.ReadStringAsync(res, BoundedContent.Auth, ct));
+        return doc.RootElement.GetProperty("sub").GetString()
             ?? throw new InvalidOperationException("userinfo missing sub");
     }
 
@@ -134,7 +146,8 @@ public sealed class NugsAuth
         SetUA(req, NugsConstants.MobileUserAgent);
         using var res = await _http.SendAsync(req, ct);
         res.EnsureSuccessStatusCode();
-        return await res.Content.ReadFromJsonAsync<SubInfo>(cancellationToken: ct)
+        return JsonSerializer.Deserialize<SubInfo>(
+                   await BoundedContent.ReadStringAsync(res, BoundedContent.Auth, ct), WireJson)
             ?? throw new InvalidOperationException("empty sub info");
     }
 
@@ -142,5 +155,23 @@ public sealed class NugsAuth
     {
         req.Headers.UserAgent.Clear();
         req.Headers.TryAddWithoutValidation("User-Agent", ua);
+    }
+
+    private static async Task<TokenResponse> ReadTokenAsync(HttpResponseMessage res, CancellationToken ct)
+    {
+        var token = JsonSerializer.Deserialize<TokenResponse>(
+                        await BoundedContent.ReadStringAsync(res, BoundedContent.Auth, ct), WireJson)
+            ?? throw new InvalidOperationException("empty token response");
+        if (string.IsNullOrEmpty(token.access_token))
+            throw new InvalidOperationException("empty token response");
+        return token;
+    }
+
+    /// <summary>Refresh 60s early, but never treat a short-lived token as already expired.</summary>
+    internal static DateTimeOffset ExpiresAt(int expiresInSeconds)
+    {
+        var lifetime = Math.Max(expiresInSeconds, 0);
+        var skew = Math.Min(60, lifetime / 2);
+        return DateTimeOffset.UtcNow.AddSeconds(lifetime - skew);
     }
 }

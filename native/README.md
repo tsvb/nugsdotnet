@@ -23,7 +23,8 @@ This head *is* nugsdotnet now.
   your library), and a filterable faceplate-chip artist grid with live count.
 - **Stash** — a star toggle on every album/show page (amber when stashed).
   Local-first by design: nugs' legacy API exposes no favorites surface, so the
-  stash lives in `%LOCALAPPDATA%\nugsdotnet\stash.json`; server sync can layer
+  stash lives in `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\stash.json` (per nugs
+  account, not per Windows profile); server sync can layer
   on later if the API ever grounds it.
 - **Browse** — artist pages (releases as art cards, virtualized show list),
   set-grouped album pages with a live amber now-playing row, sectioned search.
@@ -78,7 +79,10 @@ Range/206 audio through C#. A native app has neither limit:
 | `Nugsdotnet.Native.Tests` | `net10.0` | xUnit tests for the pure Core logic. Runs cross-platform. |
 
 Tokens are persisted to `%LOCALAPPDATA%\nugsdotnet\session.bin`, **DPAPI-encrypted**
-(CurrentUser scope) — an upgrade over the original plaintext `tokens.json`.
+(CurrentUser scope, app-specific entropy). Existing no-entropy blobs still load
+and are rewritten in place — no forced re-login. Stash, recents, and playback
+resume live under `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` so they follow
+the nugs account, not the Windows profile.
 
 ## Build & run (Windows)
 
@@ -86,12 +90,10 @@ Requires the **.NET 10 SDK** on Windows 10 2004+ / Windows 11 (x64 or arm64). No
 MAUI workload is needed — the Windows App SDK is pure NuGet.
 
 ```powershell
-# credentials via environment (the login screen's default), or type them in the UI
-$env:NUGS_EMAIL = "you@example.com"
-$env:NUGS_PASSWORD = "your-password"
-
 dotnet run --project native\Nugsdotnet.Native\Nugsdotnet.Native.csproj
 ```
+
+Sign in with your nugs.net email and password on the login form.
 
 Then: sign in → search a band/song → press ▶ on a result → confirm audio, seek, and
 volume. That single path exercises auth → catalog → stream-resolve →

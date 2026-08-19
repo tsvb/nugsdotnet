@@ -16,9 +16,13 @@
     <RootNamespace>Nugsdotnet.Native.Core</RootNamespace>
   </PropertyGroup>
 
-  <ItemGroup>
+    <ItemGroup>
     <!-- DPAPI for at-rest token encryption (Windows runtime only; compiles everywhere). -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nugsdotnet.Native.Tests" />
   </ItemGroup>
 
 </Project>

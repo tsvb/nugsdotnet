@@ -15,14 +15,19 @@
                 <TextBlock Text="native Windows client" Margin="0,-6,0,8" FontSize="12"
                            FontFamily="{StaticResource BrandMonoFont}" Foreground="{StaticResource BrandDim}" />
 
-                <CheckBox Content="Use credentials from environment (NUGS_EMAIL / NUGS_PASSWORD)"
-                          IsChecked="{Binding UseEnv, Mode=TwoWay}" />
-
-                <TextBox Header="Email" Text="{Binding Email, Mode=TwoWay}" PlaceholderText="you@example.com" />
-                <PasswordBox x:Name="PasswordInput" Header="Password" PasswordChanged="OnPasswordChanged" />
+                <TextBox x:Name="EmailInput" Header="Email"
+                         Text="{Binding Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="you@example.com"
+                         IsEnabled="{Binding FieldsEnabled}"
+                         KeyDown="OnCredentialKeyDown" />
+                <PasswordBox x:Name="PasswordInput" Header="Password"
+                             IsEnabled="{Binding FieldsEnabled}"
+                             PasswordChanged="OnPasswordChanged"
+                             KeyDown="OnCredentialKeyDown" />
 
                 <Button x:Name="SignInButton" Content="Sign in" Click="OnSignIn"
-                        Style="{StaticResource PlayButtonStyle}" HorizontalAlignment="Stretch" />
+                        Style="{StaticResource PlayButtonStyle}" HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding FieldsEnabled}" />
 
                 <TextBlock Text="{Binding Error}" Foreground="#FFEF4444" TextWrapping="Wrap" />
             </StackPanel>

@@ -80,12 +80,11 @@ Requires the **.NET 10 SDK** on Windows. No MAUI workload, no MSIX — the
 Windows App SDK arrives via NuGet.
 
 ```powershell
-# credentials via environment (the login screen's default), or type them in the UI
-$env:NUGS_EMAIL = "you@example.com"
-$env:NUGS_PASSWORD = "your-password"
-
 dotnet run --project native\Nugsdotnet.Native\Nugsdotnet.Native.csproj
 ```
+
+Sign in with your nugs.net email and password on the login form. Tokens are then
+DPAPI-encrypted at rest — the process environment is never read for a password.
 
 The full tour — dashboard home, transport, the `Ctrl+D` mini-player inspector
 with live stream metrics, gapless internals, roadmap — lives in
