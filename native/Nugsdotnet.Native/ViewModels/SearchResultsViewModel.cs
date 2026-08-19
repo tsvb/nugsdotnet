@@ -12,9 +12,9 @@ public partial class SearchResultsViewModel : ObservableObject
     public ObservableCollection<ArtistEntry> Artists { get; } = new();
     public ObservableCollection<ContainerEntry> Containers { get; } = new();
 
-    [ObservableProperty] private string? heading;
-    [ObservableProperty] private bool busy;
-    [ObservableProperty] private string? status;
+    [ObservableProperty] public partial string? Heading { get; set; }
+    [ObservableProperty] public partial bool Busy { get; set; }
+    [ObservableProperty] public partial string? Status { get; set; };
 
     public SearchResultsViewModel(NugsCatalog catalog) => _catalog = catalog;
 

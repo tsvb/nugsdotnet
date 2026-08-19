@@ -9,8 +9,8 @@ public partial class ShellViewModel : ObservableObject
     private readonly NugsAuth _auth;
     private readonly AccountLocalStore _accounts;
 
-    [ObservableProperty] private bool isLoggedIn;
-    [ObservableProperty] private string? planLabel;
+    [ObservableProperty] public partial bool IsLoggedIn { get; set; }
+    [ObservableProperty] public partial string? PlanLabel { get; set; };
 
     public ShellViewModel(NugsAuth auth, AccountLocalStore accounts)
     {
