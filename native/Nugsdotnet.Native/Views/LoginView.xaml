@@ -35,8 +35,8 @@
                 <StackPanel Spacing="6">
                     <TextBlock Text="PASSWORD" Style="{StaticResource FaceplateLabelStyle}" />
                     <PasswordBox x:Name="PasswordInput"
+                                 PasswordRevealMode="Hidden"
                                  IsEnabled="{Binding FieldsEnabled}"
-                                 PasswordChanged="OnPasswordChanged"
                                  KeyDown="OnCredentialKeyDown" />
                 </StackPanel>
 

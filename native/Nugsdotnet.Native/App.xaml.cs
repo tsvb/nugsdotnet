@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http;
+using System.Net.Security;
+using System.Security.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Nugsdotnet.Native.Core;
@@ -34,6 +36,10 @@ public partial class App : Application
         {
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
             AutomaticDecompression = DecompressionMethods.All,
+            SslOptions = new SslClientAuthenticationOptions
+            {
+                EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+            },
         })
         {
             Timeout = TimeSpan.FromSeconds(30),

@@ -22,11 +22,6 @@ public sealed partial class LoginView : UserControl
         Loaded += (_, _) => EmailInput.Focus(FocusState.Programmatic);
     }
 
-    // PasswordBox.Password doesn't round-trip through a binding reliably, so we
-    // push it into the view model on every change.
-    private void OnPasswordChanged(object sender, RoutedEventArgs e) =>
-        _vm.Password = PasswordInput.Password;
-
     private void OnCredentialKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key != VirtualKey.Enter) return;
@@ -38,11 +33,12 @@ public sealed partial class LoginView : UserControl
 
     private async Task SubmitAsync()
     {
-        // Read the controls directly: TextBox TwoWay bindings update on lost
-        // focus, so Enter-from-the-email-field would otherwise submit stale text.
-        _vm.Email = EmailInput.Text ?? "";
-        _vm.Password = PasswordInput.Password;
-        if (await _vm.SignInAsync())
+        // Read the controls here, not via bindings: TextBox TwoWay updates on
+        // lost focus (Enter from email would submit stale text), and the
+        // password is never copied onto the view model.
+        var email = EmailInput.Text ?? "";
+        var password = PasswordInput.Password;
+        if (await _vm.SignInAsync(email, password))
         {
             PasswordInput.Password = "";
             LoggedIn?.Invoke(this, EventArgs.Empty);

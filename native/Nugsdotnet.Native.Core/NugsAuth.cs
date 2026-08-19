@@ -35,8 +35,7 @@ public sealed class NugsAuth
             ["username"] = email,
             ["password"] = password,
         });
-        using var req = new HttpRequestMessage(HttpMethod.Post, NugsConstants.AuthUrl) { Content = form };
-        SetUA(req, NugsConstants.MobileUserAgent);
+        using var req = TokenRequest(form);
         using var res = await _http.SendAsync(req, ct);
         if (!res.IsSuccessStatusCode)
         {
@@ -101,8 +100,7 @@ public sealed class NugsAuth
                 ["grant_type"] = "refresh_token",
                 ["refresh_token"] = state.Tokens.RefreshToken,
             });
-            using var req = new HttpRequestMessage(HttpMethod.Post, NugsConstants.AuthUrl) { Content = form };
-            SetUA(req, NugsConstants.MobileUserAgent);
+            using var req = TokenRequest(form);
             using var res = await _http.SendAsync(req, ct);
             if (!res.IsSuccessStatusCode)
                 throw new InvalidOperationException($"token refresh failed ({(int)res.StatusCode})");
@@ -155,6 +153,17 @@ public sealed class NugsAuth
     {
         req.Headers.UserAgent.Clear();
         req.Headers.TryAddWithoutValidation("User-Agent", ua);
+    }
+
+    /// <summary>POST to the IdP token endpoint only over public HTTPS.
+    /// Refuses to put a password or refresh token on the wire otherwise.</summary>
+    private static HttpRequestMessage TokenRequest(FormUrlEncodedContent form)
+    {
+        if (!NugsUri.IsSafeHttps(NugsConstants.AuthUrl, out var uri))
+            throw new InvalidOperationException("auth endpoint is not https");
+        var req = new HttpRequestMessage(HttpMethod.Post, uri) { Content = form };
+        SetUA(req, NugsConstants.MobileUserAgent);
+        return req;
     }
 
     private static async Task<TokenResponse> ReadTokenAsync(HttpResponseMessage res, CancellationToken ct)

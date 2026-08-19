@@ -47,6 +47,41 @@ public class NugsAuthTests
     }
 
     [Fact]
+    public void Auth_endpoints_are_public_https()
+    {
+        Assert.True(NugsUri.IsSafeHttps(NugsConstants.AuthUrl, out var token));
+        Assert.Equal(Uri.UriSchemeHttps, token!.Scheme);
+        Assert.True(NugsUri.IsSafeHttps(NugsConstants.UserInfoUrl, out _));
+        Assert.True(NugsUri.IsSafeHttps(NugsConstants.SubInfoUrl, out _));
+    }
+
+    [Fact]
+    public async Task Login_posts_the_password_grant_over_https()
+    {
+        Uri? posted = null;
+        var http = new HttpClient(new MapHandler
+        {
+            Routes =
+            {
+                [NugsConstants.AuthUrl] = req =>
+                {
+                    posted = req.RequestUri;
+                    return Json(HttpStatusCode.BadRequest, """{"error":"invalid_grant"}""");
+                },
+            },
+        });
+        var auth = new NugsAuth(http, new NugsSessionStore(TempSession()));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => auth.LoginAsync("you@example.com", "hunter2"));
+
+        Assert.NotNull(posted);
+        Assert.Equal(Uri.UriSchemeHttps, posted!.Scheme);
+        Assert.Equal("id.nugs.net", posted.IdnHost);
+        Assert.Equal("/connect/token", posted.AbsolutePath);
+    }
+
+    [Fact]
     public async Task Login_then_refresh_keeps_the_refresh_token_when_the_idp_omits_it()
     {
         var tokenCalls = 0;
