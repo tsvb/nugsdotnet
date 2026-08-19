@@ -1,8 +1,8 @@
 name: release
 
-# Tag-triggered release of the native WinUI head: self-contained publish →
-# Inno Setup installer → GitHub Release → winget manifests (and an optional,
-# secret-gated submission to microsoft/winget-pkgs). See docs/RELEASING.md.
+# Tag-triggered release: self-contained publish → Inno Setup installer →
+# GitHub Release → winget manifests (and an optional, secret-gated
+# submission to microsoft/winget-pkgs). See docs/RELEASING.md.
 on:
   push:
     tags: ['v*']

@@ -30,13 +30,7 @@ public sealed class StreamIoStats
 /// <summary>
 /// An <see cref="IRandomAccessStream"/> backed by HTTP Range requests against the
 /// nugs CDN, injecting the required Referer + mobile User-Agent on every fetch.
-///
-/// This is the native, in-process replacement for the web head's loopback Kestrel
-/// proxy: the WebView needed a server because JS can't set those headers and can't
-/// stream Range/206 media, but a native MediaPlayer reads from any IRandomAccessStream
-/// we hand it — so we do the ranged GETs ourselves and feed the bytes straight in.
-///
-/// Read-only. The CDN URL is signed and trusted (it came from nugs's subPlayer API).
+/// Read-only. Callers must pass a public HTTPS URL (see <see cref="NugsUri.IsSafeHttps"/>).
 /// </summary>
 public sealed class HttpAudioStream : IRandomAccessStream
 {

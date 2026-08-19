@@ -1,14 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    WinUI 3 (Windows App SDK) desktop app — the native head. Unpackaged,
-    self-contained win-x64, no MSIX and no MAUI workload required (the App SDK
-    is pure NuGet). References only the standalone Core library in this subtree.
+    WinUI 3 (Windows App SDK) desktop app. Unpackaged, self-contained;
+    the App SDK is pure NuGet. References only Nugsdotnet.Native.Core.
 
-    Targets net10.0 on the latest Windows App SDK (2.2.0). WindowsAppSDK pulls a
-    matching SDK.BuildTools transitively, so we don't pin that separately. The API
-    surface used here (MediaPlayer, MediaPlaybackList, IRandomAccessStream) is stable.
-    Requires the .NET 10 SDK on the build machine.
+    Targets net10.0 on Windows App SDK 2.2.0. WindowsAppSDK pulls a matching
+    SDK.BuildTools transitively, so we don't pin that separately. The API
+    surface used here (MediaPlayer, MediaPlaybackList, IRandomAccessStream)
+    is stable. Requires the .NET 10 SDK on the build machine.
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>

@@ -1,10 +1,10 @@
 name: native
 
-# Compile gate for the native WinUI head + the cross-platform Core tests.
+# Compile gate for the WinUI app + the cross-platform Core tests.
 # The WinUI XAML compiler only runs on Windows, so the windows-latest job is
-# the ONLY automated compile check the app project gets — non-Windows dev
-# environments (including Claude Code sessions) can build and test Core but
-# not the app itself. Keep this green before merging UI work.
+# the only automated compile check the app project gets. Non-Windows
+# environments can build and test Core but not the app. Keep this green
+# before merging UI work.
 on:
   push:
     paths:

@@ -1,151 +1,69 @@
-# nugsdotnet — native Windows client
+<p align="center">
+  <a href="https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml"><img src="https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml/badge.svg" alt="native CI"></a>
+  <img src="https://img.shields.io/badge/.NET-10-efe4cf?style=flat-square&labelColor=15120D&logo=dotnet&logoColor=ffb22e" alt=".NET 10">
+  <img src="https://img.shields.io/badge/WinUI%203-unpackaged-ffb22e?style=flat-square&labelColor=15120D" alt="WinUI 3">
+</p>
 
-[![native CI](https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml/badge.svg)](https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml)
+<p align="center"><em>The Windows app — layout, data on disk, build, and tests.<br>
+Product overview lives in the <a href="../README.md">repo README</a>.</em></p>
 
-A **standalone, 100% native** Windows desktop client for nugs.net, built with
-**WinUI 3 (Windows App SDK)**. It reimplemented the nugsdotnet feature set from
-scratch with **zero dependency** on the repo's original Blazor/MAUI heads —
-which have since been retired (they live in git history through `v0.2.1`).
-This head *is* nugsdotnet now.
+---
 
-> **Status: feature-complete player** (Phases 1–2 and most of Phase 3 landed).
-> Only installer/winget packaging remains on the roadmap. CI compiles the WinUI
-> head on `windows-latest` and runs the Core tests on every push to `native/`.
+## ◖ Layout
 
-## What's in the box
-
-- **RECEIVER '74 skin** — the warm-VFD dark/amber identity (inherited from the
-  retired web head, now native through and through), running edge-to-edge under
-  a custom title bar (branded drag strip + faceplate-coloured caption buttons).
-  Big Shoulders / Hanken Grotesk / DM Mono brand fonts are bundled.
-- **Home dashboard** — time-of-day greeting, **Recently Played** and **Stash**
-  art-card rails (both persisted locally; recents capped at 12, the stash is
-  your library), and a filterable faceplate-chip artist grid with live count.
-- **Stash** — a star toggle on every album/show page (amber when stashed).
-  Local-first by design: nugs' legacy API exposes no favorites surface, so the
-  stash lives in `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\stash.json` (per nugs
-  account, not per Windows profile); server sync can layer
-  on later if the API ever grounds it.
-- **Browse** — artist pages (releases as art cards, virtualized show list),
-  set-grouped album pages with a live amber now-playing row, sectioned search.
-- **Transport** — clickable album art (returns to the show), prev / **−15** /
-  play / **+30** / next with real disabled states, scrub-safe seek slider,
-  elapsed/−remaining mono counters, mute toggle, and a resolved-format badge
-  (FLAC 16 / ALAC 16 / MQA 24…) that lights amber for lossless.
-- **Dashboard inspector** (`Ctrl+D`) — a mini player (art, seek, transport),
-  **SIGNAL PATH** metrics measured off the live stream (size, average bitrate,
-  ranged-read I/O counters, format/tier/container), and an **UP NEXT** queue
-  with click-to-jump.
-- **Gapless playback** — the current track plays from a `MediaPlaybackList`
-  while the next resolves in the background and pre-rolls; a `MediaEnded`
-  fallback guarantees a missed look-ahead gaps instead of stalling. HLS-only
-  tracks play through an adaptive source instead of being skipped.
-- **Session memory** — relaunch and pick up where you stopped: the queue and
-  position come back primed (press play to resume), and window bounds,
-  dashboard state, volume, and mute are remembered.
-- **System integration** — media keys and the Windows media flyout (SMTC) with
-  full title/artist/show/art metadata.
-
-### Keyboard shortcuts
-
-| key          | action              |
-| ------------ | ------------------- |
-| `Ctrl+F`     | Focus search        |
-| `Ctrl+Space` | Play / pause        |
-| `Ctrl+→`     | Next track          |
-| `Ctrl+←`     | Previous track      |
-| `Ctrl+D`     | Toggle dashboard    |
-
-## Why it's simpler than the retired web/MAUI heads
-
-The Blazor heads needed a loopback **Kestrel proxy** because a WebView can't set
-the `Referer`/`User-Agent` headers the nugs CDN requires and can't stream
-Range/206 audio through C#. A native app has neither limit:
-
-- **Audio** is fed to `Windows.Media.Playback.MediaPlayer` from a custom
-  `IRandomAccessStream` (`Audio/HttpAudioStream.cs`) that issues ranged GETs with
-  the required headers — the in-process equivalent of the proxy, **no server**.
-- **Formats**: Media Foundation decodes FLAC/ALAC/AAC natively on Windows 10+, so
-  the native head plays formats the web head punted on.
-- **Gapless queueing** comes from `MediaPlaybackList` (implemented — one-track
-  look-ahead pre-roll) — no hand-rolled dual-`<audio>` swap.
-
-## Layout
+Everything that ships is under `native/`. Three projects:
 
 | Project | TFM | Role |
 |---|---|---|
-| `Nugsdotnet.Native.Core` | `net10.0` | Platform-agnostic: auth, session store, catalog, stream resolver, JSON shaping. Unit-testable on any OS. |
-| `Nugsdotnet.Native` | `net10.0-windows…` | WinUI 3 app: HTTP audio stream, `MediaPlayer` playback, XAML views + view models. |
-| `Nugsdotnet.Native.Tests` | `net10.0` | xUnit tests for the pure Core logic. Runs cross-platform. |
+| `Nugsdotnet.Native.Core` | `net10.0` | Auth, session, catalog, stream resolver, JSON shaping, local stores. Testable on any OS. |
+| `Nugsdotnet.Native` | `net10.0-windows10.0.19041.0` | WinUI 3 app: `HttpAudioStream`, `MediaPlayer`, XAML, view models, RECEIVER '74. |
+| `Nugsdotnet.Native.Tests` | `net10.0` | xUnit for Core. Cross-platform. |
 
-Tokens are persisted to `%LOCALAPPDATA%\nugsdotnet\session.bin`, **DPAPI-encrypted**
-(CurrentUser scope, app-specific entropy). Existing no-entropy blobs still load
-and are rewritten in place — no forced re-login. Stash, recents, and playback
-resume live under `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` so they follow
-the nugs account, not the Windows profile.
+Core has no WinUI types. The app references Core only.
 
-## Build & run (Windows)
+---
 
-Requires the **.NET 10 SDK** on Windows 10 2004+ / Windows 11 (x64 or arm64). No
-MAUI workload is needed — the Windows App SDK is pure NuGet.
+## ◖ On disk
+
+| Path | What |
+|---|---|
+| `%LOCALAPPDATA%\nugsdotnet\session.bin` | Access + refresh tokens. DPAPI CurrentUser + app entropy (`NDS1`). Older blobs still load and rewrite in place. |
+| `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` | `stash.json`, `recents.json`, `playback.json` — scoped to the nugs account, not the Windows profile. |
+| `%LOCALAPPDATA%\nugsdotnet\` (root) | Window bounds. One live login per Windows user. |
+
+`userId` is the OIDC `sub`, sanitized so path segments cannot escape the accounts folder. Sign-out deletes `session.bin` and unbinds the account stores.
+
+---
+
+## ◖ Power on
+
+**.NET 10 SDK** on Windows 10 2004+ / Windows 11 (x64 or arm64). Windows App SDK is NuGet — no extra workload.
 
 ```powershell
-dotnet run --project native\Nugsdotnet.Native\Nugsdotnet.Native.csproj
+dotnet build native\Nugsdotnet.Native\Nugsdotnet.Native.csproj -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64
+dotnet run --project native\Nugsdotnet.Native\Nugsdotnet.Native.csproj -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64
 ```
 
-Sign in with your nugs.net email and password on the login form.
+Sign in on the login card (email + password). Then: search → play a show → seek and volume. That path hits auth → catalog → stream-resolve → `HttpAudioStream` → `MediaPlayer`.
 
-Then: sign in → search a band/song → press ▶ on a result → confirm audio, seek, and
-volume. That single path exercises auth → catalog → stream-resolve →
-`HttpAudioStream` → `MediaPlayer`.
+`Microsoft.WindowsAppSDK` is pinned at **2.2.0** in `Nugsdotnet.Native.csproj`. If restore misses a package, bump to the current stable — `MediaPlayer`, `MediaPlaybackList`, and `IRandomAccessStream` are stable across 1.x/2.x.
 
-> **Package versions** in `Nugsdotnet.Native.csproj` (`Microsoft.WindowsAppSDK`
-> 2.2, which pulls a matching `SDK.BuildTools` transitively) are best-effort
-> pins. If restore can't find one, bump to the latest stable — the APIs used
-> here (MediaPlayer, MediaPlaybackList, IRandomAccessStream, AppWindowTitleBar)
-> are stable across 1.x/2.x.
+---
 
-## Test (any OS)
+## ◖ Tests
 
-The Core logic tests don't need Windows:
+Core tests do not need Windows:
 
 ```bash
-dotnet test native/Nugsdotnet.Native.Tests/Nugsdotnet.Native.Tests.csproj
+dotnet test native/Nugsdotnet.Native.Tests/Nugsdotnet.Native.Tests.csproj -c Release
 ```
 
-They cover `IdentifyFormat`, the stream-pick preference order, MIME mapping,
-the defensive `NugsShape` JSON digging, and the `RecentsStore` merge/round-trip
-behaviour behind the Home dashboard's Recently Played rail. The same suite runs
-in CI (`.github/workflows/native.yml`) alongside a `windows-latest` job that
-compiles the WinUI head — the XAML compiler is Windows-only, so that job is the
-compile gate for UI changes.
+They cover token handling and error sanitizing, the HTTPS URL allowlist, bounded HTTP reads, catalog JSON shaping, stream-format preference, and the recents / stash / playback / account stores.
 
-## Repository layout note
+CI (`.github/workflows/native.yml`) runs that suite on Ubuntu and compiles the WinUI head on `windows-latest` (Release x64). The XAML compiler is Windows-only, so the Windows job is the compile gate for UI changes.
 
-Since the web/MAUI heads were retired, this subtree is the repo's only code —
-it stays under `native/` mainly so pre-retirement history reads cleanly. It is
-fully self-contained: nothing here references anything outside the subtree, so
-hoisting it to the repo root later is a plain `git mv` (plus path updates in
-`.github/workflows/native.yml` and the READMEs), and extracting it into a
-fresh repo with subtree history remains a one-liner:
+Releases: [`docs/RELEASING.md`](../docs/RELEASING.md).
 
-```bash
-git subtree split --prefix=native -b native-only
-```
+---
 
-## Roadmap
-
-- **Phase 1 (done)** — auth, search, single-track native playback, basic transport.
-- **Phase 2 (done)** — artist landing + album detail; queue UI (the dashboard
-  inspector's up-next with click-to-jump), enqueue/play-next + prev/next;
-  keyboard shortcuts and System Media Transport Controls with full metadata;
-  image loading (direct CDN GET + in-memory cache); the RECEIVER '74 re-skin,
-  custom title bar, and Home dashboard with the recently-played rail.
-- **Phase 3 (done)** — stream-quality dashboard ✓ (the inspector's SIGNAL
-  PATH section); true gapless via `MediaPlaybackList` ✓ (one-track look-ahead
-  pre-roll, resolve-on-advance fallback); resume-on-launch ✓; HLS playback
-  via adaptive source ✓; remembered window/volume state ✓; Inno Setup
-  installer + winget manifest ✓ (tag-triggered — see
-  [`docs/RELEASING.md`](../docs/RELEASING.md)).
-
-Not affiliated with nugs.net. For personal use against your own subscription.
+<p align="center"><sub>Not affiliated with nugs.net. Personal use against your own subscription.</sub></p>
