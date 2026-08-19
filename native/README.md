@@ -79,10 +79,10 @@ Range/206 audio through C#. A native app has neither limit:
 | `Nugsdotnet.Native.Tests` | `net10.0` | xUnit tests for the pure Core logic. Runs cross-platform. |
 
 Tokens are persisted to `%LOCALAPPDATA%\nugsdotnet\session.bin`, **DPAPI-encrypted**
-(CurrentUser scope) — an upgrade over the original plaintext `tokens.json`. Stash,
-recents, and playback resume live under
-`%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` so they follow the nugs account,
-not the Windows profile.
+(CurrentUser scope, app-specific entropy). Existing no-entropy blobs still load
+and are rewritten in place — no forced re-login. Stash, recents, and playback
+resume live under `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` so they follow
+the nugs account, not the Windows profile.
 
 ## Build & run (Windows)
 

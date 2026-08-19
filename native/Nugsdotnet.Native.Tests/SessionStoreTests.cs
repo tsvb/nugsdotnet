@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Nugsdotnet.Native.Core;
 
 namespace Nugsdotnet.Native.Tests;
@@ -37,5 +38,35 @@ public class SessionStoreTests
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, "not-a-session");
         Assert.Null(await new NugsSessionStore(path).LoadAsync());
+    }
+
+    [Fact]
+    public async Task Load_upgrades_a_legacy_unprefixed_blob_without_dropping_the_session()
+    {
+        var path = TempPath();
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var json = JsonSerializer.SerializeToUtf8Bytes(Sample());
+        await File.WriteAllBytesAsync(path, NugsSessionStore.EncryptLegacy(json));
+
+        var loaded = await new NugsSessionStore(path).LoadAsync();
+        Assert.Equal("access", loaded!.Tokens.AccessToken);
+        Assert.Equal("user-1", loaded.UserId);
+
+        var onDisk = await File.ReadAllBytesAsync(path);
+        Assert.True(onDisk.AsSpan().StartsWith(NugsSessionStore.V1Prefix));
+
+        var reloaded = await new NugsSessionStore(path).LoadAsync();
+        Assert.Equal("refresh", reloaded!.Tokens.RefreshToken);
+    }
+
+    [Fact]
+    public void Encrypt_roundtrip_through_TryDecrypt_is_v1()
+    {
+        var json = "{\"ok\":true}"u8.ToArray();
+        var blob = NugsSessionStore.Encrypt(json);
+        Assert.True(blob.AsSpan().StartsWith(NugsSessionStore.V1Prefix));
+        Assert.True(NugsSessionStore.TryDecrypt(blob, out var plain, out var legacy));
+        Assert.False(legacy);
+        Assert.Equal(json, plain);
     }
 }
