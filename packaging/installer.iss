@@ -15,8 +15,8 @@
 #define MyAppExeName "Nugsdotnet.Native.exe"
 
 [Setup]
-; AppId is the winget/identity anchor — never change it. Deliberately the same
-; id the retired MAUI head used: an upgrade replaces that install in place.
+; AppId is the winget/identity anchor — never change it. Upgrades replace
+; the previous install in place.
 AppId={{8B3F2A14-9C7D-4E6B-A1F0-5D2E7C9B4A60}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -43,9 +43,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [InstallDelete]
-; Self-contained publishes shed assemblies between versions, and the MAUI→native
-; transition even renamed the exe — clear the app dir so upgrades leave no strays.
-; {app} is our own per-user directory; user data lives in %LOCALAPPDATA%\nugsdotnet.
+; Self-contained publishes shed assemblies between versions — clear the app
+; dir so upgrades leave no strays. {app} is our own per-user directory; user
+; data lives in %LOCALAPPDATA%\nugsdotnet.
 Type: filesandordirs; Name: "{app}\*"
 
 [Files]

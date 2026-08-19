@@ -1,95 +1,90 @@
 # Releasing nugsdotnet
 
-Releases are cut by pushing a version tag. The
-[`release` workflow](../.github/workflows/release.yml) publishes the native
-app self-contained, builds the installer, publishes a GitHub Release, and
-generates the winget manifest.
+Push a `v*` tag. The [`release` workflow](../.github/workflows/release.yml)
+publishes a self-contained WinUI build, builds the Inno Setup installer, opens
+a GitHub Release, and attaches winget manifests.
 
-## Prerequisites for end users
+## Who can run it
 
-- Windows 10 2004+ or Windows 11, x64 (runs on arm64 via x64 emulation).
-- Nothing else — the build is self-contained (.NET and the Windows App SDK are
-  bundled; no WebView2, no runtime installs).
+| | |
+|---|---|
+| **OS** | Windows 10 2004+ or Windows 11 |
+| **Arch** | x64 installer (arm64 runs it via x64 emulation) |
+| **Runtimes** | None — .NET and the Windows App SDK are bundled |
 
 ## Cut a release
 
-```
+```powershell
 git checkout main
 git pull
-git tag v0.3.0      # must be vMAJOR.MINOR.PATCH; the leading v is stripped
+git tag v0.3.0      # vMAJOR.MINOR.PATCH — the leading v is stripped
 git push origin v0.3.0
 ```
 
+The tag is the only version input. It flows into the assembly (`-p:Version`),
+the installer filename, and the winget manifests. No file needs a bump.
+
 The workflow then:
 
-1. Publishes `native/Nugsdotnet.Native` self-contained (win-x64) and builds
+1. Publishes `native/Nugsdotnet.Native` self-contained (`win-x64`) and builds
    `nugsdotnet-0.3.0-x64-setup.exe`.
-2. Creates the GitHub Release with the installer attached.
-3. Generates the winget manifest from the checked-in template in
-   `packaging/winget/` — filling in the release URL and the installer's
-   SHA256 — and attaches `nugsdotnet-0.3.0-winget-manifests.zip` to the
-   release.
+2. Creates the GitHub Release with that installer attached.
+3. Fills [`packaging/winget/`](../packaging/winget/) with this release's URL and
+   SHA-256, then attaches `nugsdotnet-0.3.0-winget-manifests.zip`.
 
-The tag is the single source of truth for the version — it flows into the
-assembly (`-p:Version`), the installer filename, and the manifest. No file
-needs editing to bump the version.
+The installer is **per-user** (no UAC). `AppId` is stable so upgrades replace
+the previous install in place. The app directory is cleared on upgrade so
+stale assemblies do not linger; user data is left alone:
 
-Upgrades replace the retired MAUI-era install in place: the installer keeps
-the same `AppId`, and clears the app directory on install (the exe name
-changed across the MAUI→native transition). User data is untouched — session
-lives in `%LOCALAPPDATA%\nugsdotnet`; stash, recents, and playback state live
-per nugs account under `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}`.
+| | |
+|---|---|
+| Session | `%LOCALAPPDATA%\nugsdotnet\session.bin` |
+| Stash / recents / playback | `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` |
 
-## Install locally
+## Install from a release
 
-Download the manifests asset from a release, unzip it, then:
+Download and run `nugsdotnet-<version>-x64-setup.exe`, or unzip the manifests
+asset and:
 
-```
+```powershell
 winget install --manifest .\nugsdotnet-<version>-winget-manifests
 ```
 
-Or just download and run the `…-x64-setup.exe` directly. The repo is public, so
-the manifest's `InstallerUrl` is anonymously downloadable.
+The repo is public, so `InstallerUrl` is anonymously downloadable.
 
-## Publish to the public winget catalog (optional)
+## Public winget catalog (optional)
 
-`winget install nugsdotnet` from the **default** source needs a one-time PR to
-`microsoft/winget-pkgs`. The repo is public and a `LICENSE` (MIT) is in place
-and reflected in the manifest, so all that's left is the token:
+`winget install nugsdotnet` from the default source needs a one-time PR to
+`microsoft/winget-pkgs`. MIT `LICENSE` is already in the manifest.
 
 1. Create a **classic PAT** with `public_repo` scope.
-2. Add it as the repo secret **`WINGET_TOKEN`** (Settings → Secrets and
-   variables → Actions).
+2. Store it as the Actions secret **`WINGET_TOKEN`**.
 
-With the secret present, the release workflow's final step downloads
-`wingetcreate` and submits the complete generated manifests — it forks
-`microsoft/winget-pkgs` for you and opens the PR. Without the secret, that
-step is skipped. The PR fires on the next release tag; to submit the
-**current** version, re-run the latest `release` workflow run after adding
-the secret.
+With the secret present, the last release step runs `wingetcreate submit` on
+the generated manifests (forks `winget-pkgs` and opens the PR). Without it,
+that step is skipped. The PR fires on the next tag; to submit the **current**
+version, re-run the latest `release` workflow after adding the secret.
 
-Note this publicly lists an unofficial third-party nugs.net client.
+That listing is an unofficial third-party nugs.net client.
 
-## Enable code signing (optional, removes SmartScreen warning)
+## Code signing (optional)
 
-Unsigned installers trigger a SmartScreen "unknown publisher" prompt. To fix:
+Unsigned installers get a SmartScreen “unknown publisher” prompt.
 
-1. Set up **Azure Trusted Signing** (~$10/mo, no hardware token):
-   <https://learn.microsoft.com/azure/trusted-signing/>.
-2. Replace the "Sign installer (placeholder hook)" step in
-   [`.github/workflows/release.yml`](../.github/workflows/release.yml) with the
+1. Set up [Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/).
+2. Replace the “Sign installer (placeholder hook)” step in
+   [`.github/workflows/release.yml`](../.github/workflows/release.yml) with
    `azure/trusted-signing-action`, signing
-   `packaging/Output/nugsdotnet-<version>-x64-setup.exe` **after** the "Build
-   installer" step and **before** "Create GitHub Release".
+   `packaging/Output/nugsdotnet-<version>-x64-setup.exe` **after** “Build
+   installer” and **before** “Create GitHub Release”.
 
-## Smoke-testing the pipeline
+## Smoke-test the pipeline
 
-To exercise the workflow without a real `0.3.0` release, push a pre-release
-tag and watch it, then delete it:
+Push a pre-release tag, watch Actions, then delete the tag and release:
 
-```
-git tag v0.3.0-rc1 && git push origin v0.3.0-rc1
-# watch the run on the Actions tab
-# confirm the release has both the setup.exe and the winget-manifests.zip
-# then delete the release + tag from the Releases page (or gh release delete)
+```powershell
+git tag v0.3.0-rc1
+git push origin v0.3.0-rc1
+# confirm the release has setup.exe + winget-manifests.zip
+# then delete from the Releases page (or: gh release delete v0.3.0-rc1 --cleanup-tag)
 ```

@@ -6,11 +6,12 @@
   <a href="https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml"><img src="https://github.com/tsvb/nugsdotnet/actions/workflows/native.yml/badge.svg" alt="native CI"></a>
   <img src="https://img.shields.io/badge/.NET-10-efe4cf?style=flat-square&labelColor=15120D&logo=dotnet&logoColor=ffb22e" alt=".NET 10">
   <img src="https://img.shields.io/badge/Windows-x64%20%7C%20arm64-9a8b6e?style=flat-square&labelColor=15120D&logo=windows&logoColor=efe4cf" alt="Windows">
-  <img src="https://img.shields.io/badge/WinUI%203-100%25%20native-ffb22e?style=flat-square&labelColor=15120D" alt="WinUI 3 native">
+  <img src="https://img.shields.io/badge/WinUI%203-unpackaged-ffb22e?style=flat-square&labelColor=15120D" alt="WinUI 3">
   <img src="https://img.shields.io/badge/license-MIT-ffb22e?style=flat-square&labelColor=15120D" alt="MIT license">
 </p>
 
-<p align="center"><em>A personal hi-fi front panel for <a href="https://nugs.net">nugs.net</a> live music — a <b>100% native WinUI 3</b> Windows app. Fast search, a real queue, gapless playback, keyboard-first. No WebView, no proxy, no DRM games.</em></p>
+<p align="center"><em>A personal hi-fi front panel for <a href="https://nugs.net">nugs.net</a> live music.<br>
+<b>WinUI 3</b> · fast search · a real queue · gapless playback · keyboard-first.</em></p>
 
 ---
 
@@ -25,27 +26,43 @@ no content is downloaded, redistributed, or stripped of DRM. Personal use only.
 
 | | |
 |---|---|
-| **App** | WinUI 3 (Windows App SDK 2.x) · unpackaged, self-contained |
-| **Runtime** | .NET 10 · Windows 10 2004+ / Windows 11, x64 or arm64 |
-| **Audio** | FLAC 16/44 preferred, ALAC / MQA / AAC fallbacks, HLS adaptive · **gapless** via `MediaPlaybackList` look-ahead |
-| **Auth** | nugs password grant · tokens DPAPI-encrypted at rest |
-| **Identity** | RECEIVER '74 — warm-VFD dark/amber, custom title bar, brand type |
+| **App** | WinUI 3 (Windows App SDK 2.2) · unpackaged, self-contained |
+| **Runtime** | .NET 10 · Windows 10 2004+ / Windows 11 · x64 or arm64 |
+| **Audio** | FLAC 16 preferred · ALAC / MQA / AAC fallbacks · HLS adaptive · gapless look-ahead |
+| **Sign-in** | Email + password on the login card · OAuth password grant · never read from the environment |
+| **At rest** | Tokens DPAPI-encrypted (`session.bin`) · stash / recents / playback scoped to the nugs account |
+| **Identity** | RECEIVER '74 — warm-VFD dark/amber, custom title bar, bundled brand type |
+
+---
+
+## ◖ On the faceplate
+
+| | |
+|---|---|
+| **Home** | Time-of-day greeting, Recently Played and Stash art rails, filterable artist chips |
+| **Browse** | Artist pages, set-grouped album pages, sectioned search |
+| **Transport** | Prev / −15 / play / +30 / next, scrub-safe seek, mute, lossless format badge |
+| **Inspector** | `Ctrl+D` — mini player, live SIGNAL PATH metrics, UP NEXT queue |
+| **Memory** | Queue + position on relaunch, remembered window / volume / mute |
+| **OS** | Media keys and the Windows media flyout (SMTC) with title / artist / show / art |
+
+The developer tour — on-disk layout, build, tests — is in
+[`native/README.md`](native/README.md).
 
 ---
 
 ## ◖ Signal path
 
-No proxy, no WebView: the app talks to nugs directly. Auth and catalog calls go
-straight to the API, and audio feeds `MediaPlayer` from an in-process
-`IRandomAccessStream` that issues ranged CDN GETs with the required
-`Referer`/`User-Agent` itself — the whole reason the retired web heads needed a
-loopback server, done in-process.
+The app talks to nugs directly. Auth and catalog go to the API over HTTPS.
+Audio feeds `MediaPlayer` from an in-process `IRandomAccessStream` that issues
+ranged CDN GETs with the required `Referer` / `User-Agent`. Stream URLs from
+the API are allowlisted to public HTTPS before anything is fetched.
 
 ```
   nugs.net API + CDN
         │
   ┌─────┴──────────────────────────────────────────────┐
-  │ Nugsdotnet.Native.Core      auth · catalog · picks │   net10.0, tested on any OS
+  │ Nugsdotnet.Native.Core      auth · catalog · picks │   net10.0 — tested on any OS
   ├────────────────────────────────────────────────────┤
   │ Nugsdotnet.Native           WinUI 3 front panel    │   HttpAudioStream → MediaPlayer
   └────────────────────────────────────────────────────┘
@@ -53,85 +70,56 @@ loopback server, done in-process.
 
 | Project | Role |
 |---|---|
-| [`native/Nugsdotnet.Native.Core`](native/Nugsdotnet.Native.Core) | Platform-agnostic: auth, DPAPI session store, catalog, stream resolver, recents |
-| [`native/Nugsdotnet.Native`](native/Nugsdotnet.Native) | The WinUI 3 app: views, playback, imaging, RECEIVER '74 theme |
-| [`native/Nugsdotnet.Native.Tests`](native/Nugsdotnet.Native.Tests) | xUnit suite for Core — runs cross-platform, gates CI |
+| [`native/Nugsdotnet.Native.Core`](native/Nugsdotnet.Native.Core) | Auth, DPAPI session, catalog, stream resolver, local stores |
+| [`native/Nugsdotnet.Native`](native/Nugsdotnet.Native) | WinUI 3 app: views, playback, imaging, RECEIVER '74 theme |
+| [`native/Nugsdotnet.Native.Tests`](native/Nugsdotnet.Native.Tests) | xUnit suite for Core — cross-platform, gates CI |
 
 ---
 
 ## ◖ Off the shelf — install it
 
 Grab the latest `nugsdotnet-<version>-x64-setup.exe` from
-[Releases](../../releases) — a per-user install, no admin, fully
-self-contained (no .NET or runtime installs). Each release also carries a
+[Releases](https://github.com/tsvb/nugsdotnet/releases) — per-user, no admin,
+self-contained (no extra .NET or runtime install). Each release also carries a
 winget manifest:
 
 ```powershell
 winget install --manifest .\nugsdotnet-<version>-winget-manifests
 ```
 
-Cut-a-release details live in [`docs/RELEASING.md`](docs/RELEASING.md).
+How a release is cut: [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ---
 
 ## ◖ Power on — run from source
 
-Requires the **.NET 10 SDK** on Windows. No MAUI workload, no MSIX — the
-Windows App SDK arrives via NuGet.
+Requires the **.NET 10 SDK** on Windows. The Windows App SDK arrives via NuGet.
 
 ```powershell
-dotnet run --project native\Nugsdotnet.Native\Nugsdotnet.Native.csproj
+dotnet run --project native\Nugsdotnet.Native\Nugsdotnet.Native.csproj -c Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64
 ```
 
-Sign in with your nugs.net email and password on the login form. Tokens are then
-DPAPI-encrypted at rest — the process environment is never read for a password.
-
-The full tour — dashboard home, transport, the `Ctrl+D` mini-player inspector
-with live stream metrics, gapless internals, roadmap — lives in
-[`native/README.md`](native/README.md).
+Sign in with your nugs.net email and password. Tokens are then encrypted at
+rest; the password is not stored.
 
 ### Front panel — keyboard shortcuts
 
-| key          | action           |
-| ------------ | ---------------- |
-| `Ctrl+F`     | Focus search     |
-| `Ctrl+Space` | Play / pause     |
-| `Ctrl+→`     | Next track       |
-| `Ctrl+←`     | Previous track   |
+| key          | action         |
+| ------------ | -------------- |
+| `Ctrl+F`     | Focus search   |
+| `Ctrl+Space` | Play / pause   |
+| `Ctrl+→`     | Next track     |
+| `Ctrl+←`     | Previous track |
 | `Ctrl+D`     | Toggle dashboard |
 
-Media keys and the Windows media flyout work too (SMTC with full metadata).
+Media keys and the Windows media flyout work too.
 
 ---
 
-## ◖ On the dial — roadmap
+## ◖ On the dial — next
 
-Phases 1–3 are landed: player, browse, dashboard, gapless, SMTC,
-resume-on-launch (queue + position primed on relaunch), HLS playback,
-remembered window/volume state, a local **stash** (star an album, it lands on
-the Home rail), and tag-triggered installer + winget distribution. Next up, as
-the itch strikes:
-
-- **Code signing** — Azure Trusted Signing to retire the SmartScreen prompt
-  (hook is already in the release workflow).
-- **Stash sync** — push the local stash server-side if nugs' API ever exposes
-  a favorites surface (none documented today).
-
----
-
-<details>
-<summary><b>◖ History</b> — the web &amp; MAUI era</summary>
-
-<br>
-
-This repo originally hosted three heads: a Blazor WebAssembly web app, a .NET
-MAUI Blazor Hybrid desktop app, and this native head. The WinUI client was the
-goal all along — once it reached feature parity (and then some), the
-Blazor/MAUI projects were retired. They live on in git history through the
-`v0.2.1` tag and its releases, alongside the design notes under
-[`docs/superpowers/`](docs/superpowers).
-
-</details>
+- **Code signing** — Azure Trusted Signing, so SmartScreen stops warning on the installer.
+- **Stash sync** — only if nugs ever exposes a favorites API (none documented today).
 
 ---
 
