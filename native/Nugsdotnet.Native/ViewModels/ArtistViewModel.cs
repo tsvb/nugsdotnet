@@ -43,7 +43,7 @@ public partial class ArtistViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Status = ex.Message;
+            Status = UserError.From(ex);
         }
         finally
         {
@@ -53,6 +53,7 @@ public partial class ArtistViewModel : ObservableObject
 
     private async Task LoadArtsAsync(IReadOnlyList<ShowCard> cards)
     {
-        foreach (var card in cards) await card.LoadArtAsync(_images);
+        // Overlap CDN fetches; BitmapImage decode still resumes on the UI thread.
+        await Task.WhenAll(cards.Select(c => c.LoadArtAsync(_images)));
     }
 }

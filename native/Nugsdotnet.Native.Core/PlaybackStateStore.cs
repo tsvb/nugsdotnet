@@ -60,7 +60,7 @@ public sealed class PlaybackStateStore
         await _lock.WaitAsync(ct);
         try
         {
-            await File.WriteAllBytesAsync(_path, JsonSerializer.SerializeToUtf8Bytes(snapshot), ct);
+            await AtomicFile.WriteAsync(_path, JsonSerializer.SerializeToUtf8Bytes(snapshot), ct);
         }
         catch
         {
@@ -77,7 +77,7 @@ public sealed class PlaybackStateStore
         _lock.Wait();
         try
         {
-            File.WriteAllBytes(_path, JsonSerializer.SerializeToUtf8Bytes(snapshot));
+            AtomicFile.Write(_path, JsonSerializer.SerializeToUtf8Bytes(snapshot));
         }
         catch
         {

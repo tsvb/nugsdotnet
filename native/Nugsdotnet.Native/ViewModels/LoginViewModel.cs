@@ -35,11 +35,12 @@ public partial class LoginViewModel : ObservableObject
                 return false;
             }
             await _auth.LoginAsync(e!, p!);
+            Password = "";
             return true;
         }
         catch (Exception ex)
         {
-            Error = ex.Message;
+            Error = UserError.From(ex);
             return false;
         }
         finally

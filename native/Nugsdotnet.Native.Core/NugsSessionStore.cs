@@ -60,7 +60,7 @@ public sealed class NugsSessionStore
         try
         {
             var json = JsonSerializer.SerializeToUtf8Bytes(state);
-            await File.WriteAllBytesAsync(_path, Encrypt(json), ct);
+            await AtomicFile.WriteAsync(_path, Encrypt(json), ct);
             _cache = state;
         }
         finally

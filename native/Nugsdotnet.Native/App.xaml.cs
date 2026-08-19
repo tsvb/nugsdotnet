@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Nugsdotnet.Native.Core;
@@ -25,8 +27,18 @@ public partial class App : Application
         var sc = new ServiceCollection();
 
         // One HttpClient shared across auth, catalog, stream-resolve, and the
-        // audio range reads (matches the original's single typed-client story).
-        sc.AddSingleton(_ => new HttpClient());
+        // audio range reads. Connection lifetime is bounded so a long-running
+        // session picks up CDN DNS changes; timeout + buffer cap keep a hung
+        // or oversized response from pinning the UI.
+        sc.AddSingleton(_ => new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            AutomaticDecompression = DecompressionMethods.All,
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(30),
+            MaxResponseContentBufferSize = 8 * 1024 * 1024,
+        });
 
         // Core services (reimplemented, no dependency on the original project).
         sc.AddSingleton<NugsSessionStore>();

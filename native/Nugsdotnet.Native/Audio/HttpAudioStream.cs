@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Storage.Streams;
+using Nugsdotnet.Native.Core;
 
 namespace Nugsdotnet.Native.Audio;
 
@@ -71,7 +72,10 @@ public sealed class HttpAudioStream : IRandomAccessStream
     public static async Task<HttpAudioStream> CreateAsync(
         HttpClient http, string url, string referer, string ua, CancellationToken ct = default)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        if (!NugsUri.IsSafeHttps(url, out var uri))
+            throw new InvalidOperationException("Rejected non-HTTPS or local stream URL.");
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, uri);
         req.Headers.TryAddWithoutValidation("Referer", referer);
         req.Headers.TryAddWithoutValidation("User-Agent", ua);
         req.Headers.Range = new RangeHeaderValue(0, 0);
@@ -95,7 +99,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
         {
             // The range probe returned no usable length (e.g. a chunked 200).
             // Media Foundation needs a real Size up front, so ask once via HEAD.
-            using var head = new HttpRequestMessage(HttpMethod.Head, url);
+            using var head = new HttpRequestMessage(HttpMethod.Head, uri);
             head.Headers.TryAddWithoutValidation("Referer", referer);
             head.Headers.TryAddWithoutValidation("User-Agent", ua);
             using var headRes = await http.SendAsync(head, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -111,7 +115,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
                 "CDN reported no content length (no 206 Content-Range and no Content-Length).");
         }
 
-        return new HttpAudioStream(http, new Uri(url), referer, ua, size, contentType);
+        return new HttpAudioStream(http, uri, referer, ua, size, contentType);
     }
 
     public bool CanRead => true;
@@ -145,10 +149,14 @@ public sealed class HttpAudioStream : IRandomAccessStream
         return AsyncInfo.Run<IBuffer, uint>(async (token, _) =>
         {
             var start = _position;
-            if (_size > 0 && start >= _size) return Array.Empty<byte>().AsBuffer();
+            if (count == 0 || (_size > 0 && start >= _size)) return Array.Empty<byte>().AsBuffer();
 
             var end = start + count - 1;
             if (_size > 0) end = Math.Min(end, _size - 1);
+            // Cap a single ranged GET so a CDN that ignores Range cannot dump
+            // an entire FLAC into memory on one Media Foundation read.
+            const uint maxChunk = 1024 * 1024;
+            if (end - start + 1 > maxChunk) end = start + maxChunk - 1;
 
             using var req = new HttpRequestMessage(HttpMethod.Get, _uri);
             req.Headers.TryAddWithoutValidation("Referer", _referer);
@@ -165,7 +173,8 @@ public sealed class HttpAudioStream : IRandomAccessStream
             // Learn the true size from the first ranged response if we didn't know it.
             if (res.Content.Headers.ContentRange?.Length is long total) _size = (ulong)total;
 
-            var bytes = await res.Content.ReadAsByteArrayAsync(token);
+            var want = (int)(end - start + 1);
+            var bytes = await ReadAtMostAsync(res, want, token);
             _position = start + (ulong)bytes.Length;
             Stats.Record(bytes.Length);
             return bytes.AsBuffer();
@@ -181,5 +190,25 @@ public sealed class HttpAudioStream : IRandomAccessStream
     public void Dispose()
     {
         // The HttpClient is shared/owned by DI — nothing to release here.
+    }
+
+    /// <summary>Reads at most <paramref name="max"/> bytes, discarding the rest
+    /// of a response that ignored the Range header.</summary>
+    private static async Task<byte[]> ReadAtMostAsync(
+        HttpResponseMessage res, int max, CancellationToken token)
+    {
+        await using var stream = await res.Content.ReadAsStreamAsync(token);
+        var buf = new byte[max];
+        var read = 0;
+        while (read < max)
+        {
+            var n = await stream.ReadAsync(buf.AsMemory(read, max - read), token);
+            if (n == 0) break;
+            read += n;
+        }
+        if (read == max) return buf;
+        var slice = new byte[read];
+        Buffer.BlockCopy(buf, 0, slice, 0, read);
+        return slice;
     }
 }

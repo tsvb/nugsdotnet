@@ -88,9 +88,7 @@ public sealed class StashStore
     /// </summary>
     private async Task WriteAtomicAsync(List<StashEntry> entries, CancellationToken ct)
     {
-        var tmp = _path + ".tmp";
-        await File.WriteAllBytesAsync(tmp, JsonSerializer.SerializeToUtf8Bytes(entries), ct);
-        File.Move(tmp, _path, overwrite: true);
+        await AtomicFile.WriteAsync(_path, JsonSerializer.SerializeToUtf8Bytes(entries), ct);
     }
 
     /// <summary>Pure toggle: remove when present, else insert front (newest first).</summary>

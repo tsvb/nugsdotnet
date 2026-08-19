@@ -91,7 +91,7 @@ public partial class AlbumViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Status = ex.Message;
+            Status = UserError.From(ex);
         }
         finally
         {

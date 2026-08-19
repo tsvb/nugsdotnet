@@ -17,7 +17,9 @@ public sealed class ImageLoader
     // bitmaps for the session. ~200 thumbnails ≈ a few tens of MB, well under an
     // album-art-heavy browser tab. Evicts oldest-inserted beyond the cap.
     private const int CacheCap = 200;
+    private const int MaxBytes = 4 * 1024 * 1024;
     private readonly Dictionary<string, BitmapImage> _cache = new();
+    private readonly Dictionary<string, Task<BitmapImage?>> _inflight = new();
     private readonly Queue<string> _order = new();
 
     private readonly HttpClient _http;
@@ -30,22 +32,35 @@ public sealed class ImageLoader
     /// any failure so the UI just shows no art. UI thread only (BitmapImage) —
     /// which also makes the cache single-threaded.
     /// </summary>
-    public async Task<BitmapImage?> LoadAsync(string? pathOrUrl)
+    public Task<BitmapImage?> LoadAsync(string? pathOrUrl)
     {
-        if (string.IsNullOrEmpty(pathOrUrl)) return null;
+        if (string.IsNullOrEmpty(pathOrUrl)) return Task.FromResult<BitmapImage?>(null);
 
-        var url = pathOrUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? pathOrUrl
-            : $"{NugsConstants.ImageCdnBase}{pathOrUrl}?h=400";
-        if (_cache.TryGetValue(url, out var cached)) return cached;
+        var url = NugsUri.ResolveImageUrl(pathOrUrl);
+        if (url is null) return Task.FromResult<BitmapImage?>(null);
+
+        if (_cache.TryGetValue(url, out var cached)) return Task.FromResult<BitmapImage?>(cached);
+        if (_inflight.TryGetValue(url, out var pending)) return pending;
+
+        var task = LoadUncachedAsync(url);
+        _inflight[url] = task;
+        return task;
+    }
+
+    private async Task<BitmapImage?> LoadUncachedAsync(string url)
+    {
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.TryAddWithoutValidation("User-Agent", NugsConstants.MobileUserAgent);
-            using var res = await _http.SendAsync(req);
+            using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
             if (!res.IsSuccessStatusCode) return null;
+            if (res.Content.Headers.ContentLength is long declared && declared > MaxBytes)
+                return null;
 
-            var bytes = await res.Content.ReadAsByteArrayAsync();
+            var bytes = await ReadAtMostAsync(res, MaxBytes);
+            if (bytes is null || bytes.Length == 0) return null;
+
             var bmp = new BitmapImage();
             using var ms = new InMemoryRandomAccessStream();
             await ms.WriteAsync(bytes.AsBuffer());
@@ -61,5 +76,26 @@ public sealed class ImageLoader
         {
             return null;
         }
+        finally
+        {
+            _inflight.Remove(url);
+        }
+    }
+
+    private static async Task<byte[]?> ReadAtMostAsync(HttpResponseMessage res, int max)
+    {
+        await using var stream = await res.Content.ReadAsStreamAsync();
+        using var ms = new MemoryStream(capacity: Math.Min(max, 64 * 1024));
+        var buf = new byte[8192];
+        var total = 0;
+        while (true)
+        {
+            var n = await stream.ReadAsync(buf);
+            if (n == 0) break;
+            total += n;
+            if (total > max) return null;
+            ms.Write(buf, 0, n);
+        }
+        return ms.ToArray();
     }
 }

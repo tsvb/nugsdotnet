@@ -133,6 +133,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnSignOut(object sender, RoutedEventArgs e)
     {
+        _player.Stop();
         await _shell.SignOutAsync();
         ContentFrame.Content = null;
         ContentFrame.BackStack.Clear();   // don't let Back reveal the previous session

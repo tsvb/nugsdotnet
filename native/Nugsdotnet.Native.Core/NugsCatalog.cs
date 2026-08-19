@@ -60,11 +60,11 @@ public sealed class NugsCatalog
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
         NugsAuth.SetUA(req, NugsConstants.MobileUserAgent);
-        using var res = await _http.SendAsync(req, ct);
+        using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         res.EnsureSuccessStatusCode();
         // nugs's legacy *.aspx handlers don't reliably send an application/json
         // Content-Type, which ReadFromJsonAsync would reject — parse the body directly.
-        var body = await res.Content.ReadAsStringAsync(ct);
+        var body = await BoundedContent.ReadStringAsync(res, BoundedContent.Catalog, ct);
         return JsonNode.Parse(body);
     }
 

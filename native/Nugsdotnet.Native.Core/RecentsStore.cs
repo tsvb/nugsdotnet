@@ -58,7 +58,7 @@ public sealed class RecentsStore
         try
         {
             var merged = Merge(await LoadUnlockedAsync(ct), play);
-            await File.WriteAllBytesAsync(_path, JsonSerializer.SerializeToUtf8Bytes(merged), ct);
+            await AtomicFile.WriteAsync(_path, JsonSerializer.SerializeToUtf8Bytes(merged), ct);
         }
         catch
         {

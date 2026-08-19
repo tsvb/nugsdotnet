@@ -27,6 +27,9 @@ public sealed partial class LoginView : UserControl
     private async void OnSignIn(object sender, RoutedEventArgs e)
     {
         if (await _vm.SignInAsync())
+        {
+            PasswordInput.Password = "";
             LoggedIn?.Invoke(this, EventArgs.Empty);
+        }
     }
 }
