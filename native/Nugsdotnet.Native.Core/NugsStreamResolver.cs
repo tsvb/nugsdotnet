@@ -15,8 +15,12 @@ namespace Nugsdotnet.Native.Core;
 public sealed class NugsStreamResolver
 {
     private readonly HttpClient _http;
+    private Func<AudioFormat?>? _preferredFormat;
 
     public NugsStreamResolver(HttpClient http) => _http = http;
+
+    /// <summary>When set, the resolver prefers this format if available (falls back to default order).</summary>
+    public void SetPreferredFormatProvider(Func<AudioFormat?>? provider) => _preferredFormat = provider;
 
     /// <summary>Preference order for native playback. Media Foundation decodes
     /// FLAC/ALAC/AAC natively on Win10+, so all are fair game; HLS is last.</summary>
@@ -110,13 +114,18 @@ public sealed class NugsStreamResolver
         {
             // WhenAll surfaces OCE if a task faulted with it before we caught it.
         }
-        return PickBest(available.ToArray());
+        return PickBest(available.ToArray(), _preferredFormat?.Invoke());
     }
 
     /// <summary>Pure preference selection over a probed set. Null if empty.</summary>
-    public static StreamPick? PickBest(IReadOnlyList<StreamPick> available)
+    public static StreamPick? PickBest(IReadOnlyList<StreamPick> available, AudioFormat? preferred = null)
     {
         if (available.Count == 0) return null;
+        if (preferred is { } pf)
+        {
+            var preferredMatch = available.FirstOrDefault(a => a.Format == pf);
+            if (preferredMatch is not null) return preferredMatch;
+        }
         foreach (var f in Preference)
         {
             var match = available.FirstOrDefault(a => a.Format == f);
