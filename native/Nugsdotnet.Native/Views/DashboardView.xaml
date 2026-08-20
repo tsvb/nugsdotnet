@@ -161,6 +161,7 @@
                                Foreground="{StaticResource BrandDim}" />
                     <ListView x:Name="QueueList" SelectionMode="None"
                               CanReorderItems="True" AllowDrop="True"
+                              DragItemsStarting="OnQueueDragStarting"
                               DragItemsCompleted="OnQueueReorder"
                               IsItemClickEnabled="True" ItemClick="OnQueueClick" Margin="-8,0">
                         <ListView.ItemTemplate>
@@ -169,7 +170,7 @@
                                     <Border Grid.Column="0" Width="5" Height="5" CornerRadius="1"
                                             HorizontalAlignment="Left" VerticalAlignment="Center"
                                             Background="{StaticResource BrandAccent}"
-                                            Visibility="{x:Bind IsCurrent}" />
+                                            Visibility="{x:Bind CurrentMarkerVisibility}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind Position}"
                                                VerticalAlignment="Center"
                                                FontFamily="{StaticResource BrandMonoFont}" FontSize="10"

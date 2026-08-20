@@ -3,6 +3,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Nugsdotnet.Native.Core;
 using Nugsdotnet.Native.Playback;
 using Nugsdotnet.Native.Services;
 using Nugsdotnet.Native.ViewModels;
@@ -36,7 +37,7 @@ public sealed partial class MainWindow : Window
         _player = App.Services.GetRequiredService<PlayerService>();
         _settings = App.Services.GetRequiredService<SettingsStore>();
         _updates = App.Services.GetRequiredService<UpdateChecker>();
-        DataContext = _shell;
+        MainPanel.DataContext = _shell;
 
         Transport.AlbumRequested += id => ContentFrame.Navigate(typeof(AlbumPage), id);
         LoginPanel.LoggedIn += async (_, _) =>
