@@ -50,6 +50,8 @@
                           Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
             <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
                        Foreground="{StaticResource BrandDim}" />
+            <Button x:Name="RetryButton" Content="Retry" Click="OnRetry"
+                    Style="{StaticResource IconButtonStyle}" Visibility="Collapsed" />
         </StackPanel>
 
         <ListView Grid.Row="2" x:Name="TracksList" SelectionMode="None">

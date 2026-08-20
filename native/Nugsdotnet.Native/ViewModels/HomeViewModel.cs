@@ -94,9 +94,9 @@ public partial class HomeViewModel : ObservableObject
         StashLabel = "STASH";
     }
 
-    public async Task LoadArtistsAsync()
+    public async Task LoadArtistsAsync(bool force = false)
     {
-        if (_all.Count > 0) return;   // singleton — cached for the session
+        if (!force && _all.Count > 0) return;   // singleton — cached for the session
         Busy = true;
         Status = null;
         try
@@ -115,6 +115,8 @@ public partial class HomeViewModel : ObservableObject
             Busy = false;
         }
     }
+
+    public Task ReloadArtistsAsync() => LoadArtistsAsync(force: true);
 
     private async Task LoadArtsAsync(IReadOnlyList<ShowCard> cards)
     {

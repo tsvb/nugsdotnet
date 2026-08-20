@@ -45,6 +45,11 @@
                         Margin="0,4,0,0"
                         IsEnabled="{Binding FieldsEnabled}" />
 
+                <HyperlinkButton Content="Forgot password?"
+                                 NavigateUri="https://www.nugs.net/account/forgotpassword"
+                                 FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                 Foreground="{StaticResource BrandDim}" />
+
                 <TextBlock Text="{Binding Error}"
                            FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
                            Foreground="{StaticResource BrandAccent2}" TextWrapping="Wrap" />

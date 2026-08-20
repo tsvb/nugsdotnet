@@ -54,6 +54,8 @@
                                   Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
                     <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
                                Foreground="{StaticResource BrandDim}" />
+                    <Button x:Name="RetryButton" Content="Retry" Click="OnRetry"
+                            Style="{StaticResource IconButtonStyle}" Visibility="Collapsed" />
                 </StackPanel>
 
                 <!-- ── RECENTLY PLAYED — horizontal art-card rail ─────────── -->
@@ -76,13 +78,17 @@
                 <!-- ── STASH — the local library rail (display capped; label
                      carries the full count) ───────────────────────────────── -->
                 <StackPanel x:Name="StashSection" Spacing="10" Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
-                                Background="{StaticResource BrandAccent}" />
-                        <TextBlock Text="{Binding StashLabel}" FontFamily="{StaticResource BrandMonoFont}"
-                                   FontSize="11" CharacterSpacing="140"
-                                   Foreground="{StaticResource BrandDim}" />
-                    </StackPanel>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                            <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                    Background="{StaticResource BrandAccent}" />
+                            <TextBlock Text="{Binding StashLabel}" FontFamily="{StaticResource BrandMonoFont}"
+                                       FontSize="11" CharacterSpacing="140"
+                                       Foreground="{StaticResource BrandDim}" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Content="see all" Click="OnSeeAllStash"
+                                Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" />
+                    </Grid>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
                         <ItemsControl ItemsSource="{Binding Stash}"

@@ -48,6 +48,17 @@ public class StreamResolverTests
     }
 
     [Fact]
+    public void PickBest_honors_user_preferred_format_when_available()
+    {
+        var picks = new[]
+        {
+            new StreamPick("u-flac", 2, AudioFormat.Flac16),
+            new StreamPick("u-aac", 5, AudioFormat.Aac150),
+        };
+        Assert.Equal("u-aac", NugsStreamResolver.PickBest(picks, AudioFormat.Aac150)!.Url);
+    }
+
+    [Fact]
     public void PickBest_returns_null_for_empty_set()
         => Assert.Null(NugsStreamResolver.PickBest(Array.Empty<StreamPick>()));
 

@@ -4,9 +4,12 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Nugsdotnet.Native.Playback;
+using Nugsdotnet.Native.Services;
 using Nugsdotnet.Native.ViewModels;
+using Nugsdotnet.Native.Views;
 using Nugsdotnet.Native.Views.Pages;
 using Windows.Graphics;
+using Windows.System;
 using Windows.UI;
 
 namespace Nugsdotnet.Native;
@@ -15,6 +18,8 @@ public sealed partial class MainWindow : Window
 {
     private readonly ShellViewModel _shell;
     private readonly PlayerService _player;
+    private readonly SettingsStore _settings;
+    private readonly UpdateChecker _updates;
     private bool _restoreDashboard;
 
     public MainWindow()
@@ -22,8 +27,6 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Title = "nugsdotnet";
 
-        // The cabinet colour runs to the top edge; the strip is the drag region
-        // and the caption buttons are repainted to match the faceplate.
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(TitleBarStrip);
         BrandTitleBar();
@@ -31,20 +34,23 @@ public sealed partial class MainWindow : Window
 
         _shell = App.Services.GetRequiredService<ShellViewModel>();
         _player = App.Services.GetRequiredService<PlayerService>();
+        _settings = App.Services.GetRequiredService<SettingsStore>();
+        _updates = App.Services.GetRequiredService<UpdateChecker>();
+        DataContext = _shell;
+
         Transport.AlbumRequested += id => ContentFrame.Navigate(typeof(AlbumPage), id);
         LoginPanel.LoggedIn += async (_, _) =>
         {
-            await _shell.InitializeAsync();   // Bind stash/recents/playback to this nugs user
+            await _shell.InitializeAsync();
+            _player.Volume = _settings.Current.DefaultVolume;
             await _player.RestoreAsync();
             ShowMain();
         };
         Closed += (_, _) => SaveWindowState();
-        ShowLogin();              // show login immediately; the async check may switch to the shell
+        ShowLogin();
         _ = InitializeAsync();
     }
 
-    /// <summary>Reopen where the user left the window, clamped to a visible
-    /// display so a detached monitor can't strand it off-screen.</summary>
     private void RestoreWindowState()
     {
         if (WindowStateStore.TryLoad() is not { } ws) return;
@@ -66,7 +72,7 @@ public sealed partial class MainWindow : Window
         WindowStateStore.Save(new WindowState(
             pos.X, pos.Y, size.Width, size.Height,
             Dashboard.Visibility == Visibility.Visible));
-        _player.SaveNow();   // final position snapshot for resume-on-launch
+        _player.SaveNow();
     }
 
     private void BrandTitleBar()
@@ -74,32 +80,49 @@ public sealed partial class MainWindow : Window
         var tb = AppWindow.TitleBar;
         tb.ButtonBackgroundColor = Color.FromArgb(0x00, 0x00, 0x00, 0x00);
         tb.ButtonInactiveBackgroundColor = Color.FromArgb(0x00, 0x00, 0x00, 0x00);
-        tb.ButtonForegroundColor = Color.FromArgb(0xFF, 0xEF, 0xE4, 0xCF);   // BrandText
-        tb.ButtonInactiveForegroundColor = Color.FromArgb(0xFF, 0x9A, 0x8B, 0x6E);   // BrandDim
-        tb.ButtonHoverBackgroundColor = Color.FromArgb(0xFF, 0x1F, 0x1A, 0x12);   // BrandSurface2
-        tb.ButtonHoverForegroundColor = Color.FromArgb(0xFF, 0xFF, 0xB2, 0x2E);   // BrandAccent
-        tb.ButtonPressedBackgroundColor = Color.FromArgb(0xFF, 0x3A, 0x30, 0x24);   // BrandBorder
+        tb.ButtonForegroundColor = Color.FromArgb(0xFF, 0xEF, 0xE4, 0xCF);
+        tb.ButtonInactiveForegroundColor = Color.FromArgb(0xFF, 0x9A, 0x8B, 0x6E);
+        tb.ButtonHoverBackgroundColor = Color.FromArgb(0xFF, 0x1F, 0x1A, 0x12);
+        tb.ButtonHoverForegroundColor = Color.FromArgb(0xFF, 0xFF, 0xB2, 0x2E);
+        tb.ButtonPressedBackgroundColor = Color.FromArgb(0xFF, 0x3A, 0x30, 0x24);
         tb.ButtonPressedForegroundColor = Color.FromArgb(0xFF, 0xFF, 0xB2, 0x2E);
     }
 
     private async Task InitializeAsync()
     {
+        await _settings.LoadAsync();
+        App.Services.GetRequiredService<NugsStreamResolver>()
+            .SetPreferredFormatProvider(() => _settings.Current.PreferredFormat);
+        _player.Volume = _settings.Current.DefaultVolume;
+
         await _shell.InitializeAsync();
         if (_shell.IsLoggedIn)
         {
-            await _player.RestoreAsync();   // resume-on-launch: queue primed, paused
+            await _player.RestoreAsync();
             ShowMain();
         }
         else
         {
             ShowLogin();
         }
+
+        _ = CheckForUpdatesAsync();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        var update = await _updates.CheckAsync();
+        if (update is null) return;
+        UpdateBannerText.Text = $"Update available: v{update.Tag}";
+        UpdateBannerPanel.Visibility = Visibility.Visible;
     }
 
     private void ShowMain()
     {
         LoginPanel.Visibility = Visibility.Collapsed;
         MainPanel.Visibility = Visibility.Visible;
+        SubscriptionBanner.Visibility = _shell.SubscriptionWarning is not null
+            ? Visibility.Visible : Visibility.Collapsed;
         if (_restoreDashboard && Dashboard.Visibility == Visibility.Collapsed)
         {
             Dashboard.Visibility = Visibility.Visible;
@@ -113,6 +136,8 @@ public sealed partial class MainWindow : Window
     {
         LoginPanel.Visibility = Visibility.Visible;
         MainPanel.Visibility = Visibility.Collapsed;
+        SubscriptionBanner.Visibility = Visibility.Collapsed;
+        UpdateBannerPanel.Visibility = Visibility.Collapsed;
     }
 
     private void OnBack(object sender, RoutedEventArgs e)
@@ -124,7 +149,7 @@ public sealed partial class MainWindow : Window
 
     private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key != Windows.System.VirtualKey.Enter) return;
+        if (e.Key != VirtualKey.Enter) return;
         e.Handled = true;
         var q = SearchBox.Text?.Trim();
         if (!string.IsNullOrEmpty(q))
@@ -133,33 +158,46 @@ public sealed partial class MainWindow : Window
 
     private async void OnSignOut(object sender, RoutedEventArgs e)
     {
-        _player.SaveNow();   // persist this account's queue while still bound
+        _player.SaveNow();
         _player.Stop();
         App.Services.GetRequiredService<HomeViewModel>().ResetRails();
         await _shell.SignOutAsync();
         ContentFrame.Content = null;
-        ContentFrame.BackStack.Clear();   // don't let Back reveal the previous session
+        ContentFrame.BackStack.Clear();
         ShowLogin();
     }
 
-    // ---- dashboard inspector ----------------------------------------------
+    private void OnSettings(object sender, RoutedEventArgs e) =>
+        ContentFrame.Navigate(typeof(SettingsPage));
+
+    private async void OnAbout(object sender, RoutedEventArgs e)
+    {
+        var update = await _updates.CheckAsync();
+        await AboutDialog.ShowAsync(this, _updates, update);
+    }
+
+    private async void OnUpdateBannerClick(object sender, RoutedEventArgs e)
+    {
+        var update = await _updates.CheckAsync();
+        if (update is not null)
+            await Launcher.LaunchUriAsync(new Uri(update.Url));
+    }
+
+    private async void OnRenewSubscription(object sender, RoutedEventArgs e) =>
+        await Launcher.LaunchUriAsync(new Uri("https://www.nugs.net/subscribe"));
 
     private void OnDashboardToggle(object sender, RoutedEventArgs e) => ToggleDashboard();
 
     private void ToggleDashboard()
     {
         if (Dashboard.Visibility == Visibility.Visible)
-        {
             Dashboard.Visibility = Visibility.Collapsed;
-        }
         else
         {
             Dashboard.Visibility = Visibility.Visible;
             Dashboard.OnShown();
         }
     }
-
-    // ---- keyboard shortcuts (inert on the login screen) --------------------
 
     private bool ShellActive => MainPanel.Visibility == Visibility.Visible;
 
@@ -196,6 +234,20 @@ public sealed partial class MainWindow : Window
     {
         if (!ShellActive) return;
         ToggleDashboard();
+        args.Handled = true;
+    }
+
+    private void OnSkipBackAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (!ShellActive) return;
+        _player.SkipBack();
+        args.Handled = true;
+    }
+
+    private void OnSkipForwardAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (!ShellActive) return;
+        _player.SkipForward();
         args.Handled = true;
     }
 }

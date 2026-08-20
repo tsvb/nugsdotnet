@@ -12,10 +12,10 @@
             <KeyboardAccelerator Modifiers="Control" Key="Space" Invoked="OnPlayPauseAccelerator" />
             <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="OnSearchAccelerator" />
             <KeyboardAccelerator Modifiers="Control" Key="D" Invoked="OnDashboardAccelerator" />
+            <KeyboardAccelerator Modifiers="Control,Shift" Key="Left" Invoked="OnSkipBackAccelerator" />
+            <KeyboardAccelerator Modifiers="Control,Shift" Key="Right" Invoked="OnSkipForwardAccelerator" />
         </Grid.KeyboardAccelerators>
 
-        <!-- Custom title bar: the cabinet runs to the very top of the window.
-             This strip is the drag region (SetTitleBar in code-behind). -->
         <Border x:Name="TitleBarStrip" Grid.Row="0" Background="Transparent">
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="14,0" VerticalAlignment="Center">
                 <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
@@ -27,14 +27,12 @@
         </Border>
 
         <Grid Grid.Row="1">
-            <!-- Logged-out -->
             <views:LoginView x:Name="LoginPanel" Visibility="Collapsed" />
 
-            <!-- Logged-in shell: topbar faceplate / page frame + inspector / transport -->
-            <Grid x:Name="MainPanel" Visibility="Collapsed" RowDefinitions="Auto,*,Auto">
+            <Grid x:Name="MainPanel" Visibility="Collapsed" RowDefinitions="Auto,Auto,*,Auto">
                 <Border Grid.Row="0" Background="{StaticResource BrandSurface}"
                         BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,0,0,1">
-                    <Grid Padding="14,10" ColumnSpacing="12" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                    <Grid Padding="14,10" ColumnSpacing="12" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
                         <Button Grid.Column="0" Content="◀" Click="OnBack"
                                 Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="Back" />
                         <Button Grid.Column="1" Content="NUGSDOTNET" Click="OnHome"
@@ -45,21 +43,57 @@
                                  HorizontalAlignment="Stretch"
                                  PlaceholderText="Search artists, shows, songs…  (Ctrl+F)"
                                  KeyDown="OnSearchKeyDown" />
-                        <Button Grid.Column="3" x:Name="DashboardButton" Content="&#xE9E9;"
+                        <TextBlock Grid.Column="3" Text="{Binding PlanLabel}" VerticalAlignment="Center"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandDim}" TextTrimming="CharacterEllipsis"
+                                   MaxWidth="140" />
+                        <Button Grid.Column="4" x:Name="DashboardButton" Content="&#xE9E9;"
                                 FontFamily="Segoe Fluent Icons" FontSize="14" Click="OnDashboardToggle"
                                 Style="{StaticResource IconButtonStyle}"
                                 ToolTipService.ToolTip="Dashboard (Ctrl+D)" />
-                        <Button Grid.Column="4" Content="sign out" Click="OnSignOut"
+                        <Button Grid.Column="5" Content="settings" Click="OnSettings"
+                                Style="{StaticResource IconButtonStyle}" />
+                        <Button Grid.Column="6" Content="about" Click="OnAbout"
+                                Style="{StaticResource IconButtonStyle}" />
+                        <Button Grid.Column="7" Content="sign out" Click="OnSignOut"
                                 Style="{StaticResource IconButtonStyle}" />
                     </Grid>
                 </Border>
 
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Row="1">
+                    <Border x:Name="SubscriptionBanner" Visibility="Collapsed"
+                            Background="{StaticResource BrandSurface2}"
+                            BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,0,0,1"
+                            Padding="14,8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding SubscriptionWarning}" TextWrapping="Wrap"
+                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                       Foreground="{StaticResource BrandAccent2}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Renew at nugs.net" Click="OnRenewSubscription"
+                                    Style="{StaticResource IconButtonStyle}" />
+                        </Grid>
+                    </Border>
+
+                    <Border x:Name="UpdateBannerPanel" Visibility="Collapsed"
+                            Background="{StaticResource BrandSurface2}"
+                            BorderBrush="{StaticResource BrandBorder}" BorderThickness="0,0,0,1"
+                            Padding="14,8">
+                        <Button Click="OnUpdateBannerClick"
+                                Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left" Padding="0">
+                            <TextBlock x:Name="UpdateBannerText" Text=""
+                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                       Foreground="{StaticResource BrandAccent}" />
+                        </Button>
+                    </Border>
+                </StackPanel>
+
+                <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
                     <Frame Grid.Column="0" x:Name="ContentFrame" />
                     <views:DashboardView Grid.Column="1" x:Name="Dashboard" Visibility="Collapsed" />
                 </Grid>
 
-                <views:TransportView Grid.Row="2" x:Name="Transport" />
+                <views:TransportView Grid.Row="3" x:Name="Transport" />
             </Grid>
         </Grid>
     </Grid>

@@ -18,15 +18,20 @@ public sealed partial class HomePage : Page
         DataContext = _vm;
     }
 
-    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    protected override async void OnNavigatedTo(NavigationEventArgs e) => await ReloadAsync();
+
+    private async Task ReloadAsync()
     {
-        // The rails are local and fast — show them before the artist fetch.
         await _vm.RefreshRailsAsync();
         RecentSection.Visibility = _vm.Recent.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        StashSection.Visibility = _vm.Stash.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (_vm.Artists.Count == 0) BusyRing.Visibility = Visibility.Visible;
+        StashSection.Visibility = _vm.Stash.Count > 0 || _vm.StashLabel.Contains("·", StringComparison.Ordinal)
+            ? Visibility.Visible : Visibility.Collapsed;
+        BusyRing.Visibility = Visibility.Visible;
+        RetryButton.Visibility = Visibility.Collapsed;
         await _vm.LoadArtistsAsync();
         BusyRing.Visibility = Visibility.Collapsed;
+        RetryButton.Visibility = _vm.Status is not null && _vm.Artists.Count == 0
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnArtistClick(object sender, ItemClickEventArgs e)
@@ -40,4 +45,8 @@ public sealed partial class HomePage : Page
         if (sender is FrameworkElement { Tag: ShowCard c })
             Frame.Navigate(typeof(AlbumPage), c.ContainerId);
     }
+
+    private void OnSeeAllStash(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(StashPage));
+
+    private async void OnRetry(object sender, RoutedEventArgs e) => await ReloadAsync();
 }
