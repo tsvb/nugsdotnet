@@ -164,6 +164,23 @@ public sealed partial class DashboardView : UserControl
         if (e.ClickedItem is QueueRow r) _player.PlayAt(r.Index);
     }
 
+    private void OnRemoveQueueItem(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is int index)
+            _player.RemoveAt(index);
+    }
+
+    private void OnClearQueue(object sender, RoutedEventArgs e) => _player.ClearQueue();
+
+    private void OnQueueReorder(object sender, DragItemsCompletedEventArgs e)
+    {
+        if (e.DropResult != DataPackageOperation.Move) return;
+        var oldIndex = e.OldIndex;
+        var newIndex = e.NewIndex;
+        if (oldIndex < 0 || newIndex < 0 || oldIndex == newIndex) return;
+        _player.MoveQueueItem(oldIndex, newIndex);
+    }
+
     private void OnPlayPause(object sender, RoutedEventArgs e) => _player.TogglePlayPause();
     private void OnPrev(object sender, RoutedEventArgs e) => _player.Previous();
     private void OnNext(object sender, RoutedEventArgs e) => _player.Next();
