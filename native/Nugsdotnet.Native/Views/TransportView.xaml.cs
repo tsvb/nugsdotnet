@@ -61,13 +61,20 @@ public sealed partial class TransportView : UserControl
     private void Refresh()
     {
         RefreshPlayButton();
+        RefreshModeButtons();
         PrevButton.IsEnabled = _player.HasPrevious;
         NextButton.IsEnabled = _player.HasNext;
 
         var c = _player.Current;
         Back15Button.IsEnabled = c is not null;
         Fwd30Button.IsEnabled = c is not null;
+        var isError = _player.Status is { Length: > 0 } st &&
+                      (st.Contains("Couldn't", StringComparison.Ordinal) ||
+                       st.Contains("No playable", StringComparison.Ordinal) ||
+                       st.Contains("skipping", StringComparison.OrdinalIgnoreCase));
         NowPlayingText.Text = _player.Status ?? c?.Title ?? "";
+        NowPlayingText.Foreground = (Brush)Application.Current.Resources[
+            isError ? "BrandAccent2" : "BrandText"];
         NowPlayingSub.Text = _player.Status is not null || c is null
             ? ""
             : string.Join("  ·  ", new[] { c.Artist, c.Show }.Where(s => !string.IsNullOrEmpty(s)));
@@ -101,6 +108,32 @@ public sealed partial class TransportView : UserControl
         if (PlayPauseButton.Content as string != glyph)
             PlayPauseButton.Content = glyph;
     }
+
+    private void RefreshModeButtons()
+    {
+        var shuffleOn = _player.Shuffle;
+        ShuffleButton.Foreground = (Brush)Application.Current.Resources[
+            shuffleOn ? "BrandAccent" : "BrandDim"];
+
+        var repeatLabel = _player.Repeat switch
+        {
+            RepeatMode.All => "Repeat all",
+            RepeatMode.One => "Repeat one",
+            _ => "Repeat off",
+        };
+        ToolTipService.SetToolTip(RepeatButton, repeatLabel);
+        RepeatButton.Foreground = (Brush)Application.Current.Resources[
+            _player.Repeat == RepeatMode.Off ? "BrandDim" : "BrandAccent"];
+        RepeatButton.Content = _player.Repeat switch
+        {
+            RepeatMode.One => "\uE8ED",
+            RepeatMode.All => "\uE8EE",
+            _ => "\uE8EE",
+        };
+    }
+
+    private void OnShuffleToggle(object sender, RoutedEventArgs e) => _player.ToggleShuffle();
+    private void OnRepeatCycle(object sender, RoutedEventArgs e) => _player.CycleRepeat();
 
     private void RefreshBadge()
     {

@@ -15,7 +15,11 @@
             <ProgressRing x:Name="BusyRing" IsActive="True" Visibility="Collapsed"
                           Width="28" Height="28" HorizontalAlignment="Left"
                           Foreground="{StaticResource BrandAccent}" />
-            <TextBlock Text="{Binding Status}" Foreground="{StaticResource BrandDim}" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Status}" Foreground="{StaticResource BrandDim}" />
+                <Button x:Name="RetryButton" Content="Retry" Click="OnRetry"
+                        Style="{StaticResource IconButtonStyle}" Visibility="Collapsed" />
+            </StackPanel>
 
             <!-- ── RELEASES — art-card rail ────────────────────────────── -->
             <StackPanel x:Name="ReleasesSection" Spacing="10" Visibility="Collapsed">
@@ -79,6 +83,11 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+                <Button x:Name="LoadMoreButton" Content="Load more shows" Click="OnLoadMore"
+                        Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Left"
+                        Visibility="Collapsed" />
+                <ProgressRing x:Name="LoadMoreRing" Width="22" Height="22"
+                              Foreground="{StaticResource BrandAccent}" Visibility="Collapsed" />
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

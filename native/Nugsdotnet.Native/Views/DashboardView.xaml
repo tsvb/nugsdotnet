@@ -142,7 +142,7 @@
 
                 <!-- ── UP NEXT ─────────────────────────────────────────── -->
                 <StackPanel Spacing="8">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                         <Border Grid.Column="0" Width="6" Height="6" CornerRadius="1"
                                 VerticalAlignment="Center" Background="{StaticResource BrandAccent}"
                                 Margin="0,0,10,0" />
@@ -151,20 +151,26 @@
                                    CharacterSpacing="140" Foreground="{StaticResource BrandDim}" />
                         <TextBlock Grid.Column="3" x:Name="QueueCount" Text=""
                                    FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
-                                   Foreground="{StaticResource BrandDim}" />
+                                   Foreground="{StaticResource BrandDim}" Margin="0,0,8,0" />
+                        <Button Grid.Column="4" Content="clear" Click="OnClearQueue"
+                                Style="{StaticResource IconButtonStyle}"
+                                ToolTipService.ToolTip="Clear queue" />
                     </Grid>
                     <TextBlock x:Name="QueueEmpty" Text="Queue a show to see it here."
                                FontFamily="{StaticResource BrandBodyFont}" FontSize="12"
                                Foreground="{StaticResource BrandDim}" />
                     <ListView x:Name="QueueList" SelectionMode="None"
+                              CanReorderItems="True" AllowDrop="True"
+                              DragItemsStarting="OnQueueDragStarting"
+                              DragItemsCompleted="OnQueueReorder"
                               IsItemClickEnabled="True" ItemClick="OnQueueClick" Margin="-8,0">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="views:QueueRow">
-                                <Grid ColumnDefinitions="12,26,*" ColumnSpacing="4" Padding="0,1">
+                                <Grid ColumnDefinitions="12,26,*,Auto" ColumnSpacing="4" Padding="0,1">
                                     <Border Grid.Column="0" Width="5" Height="5" CornerRadius="1"
                                             HorizontalAlignment="Left" VerticalAlignment="Center"
                                             Background="{StaticResource BrandAccent}"
-                                            Visibility="{x:Bind IsCurrent}" />
+                                            Visibility="{x:Bind CurrentMarkerVisibility}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind Position}"
                                                VerticalAlignment="Center"
                                                FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
@@ -174,6 +180,11 @@
                                                FontFamily="{StaticResource BrandBodyFont}"
                                                Foreground="{x:Bind TitleBrush}"
                                                TextTrimming="CharacterEllipsis" />
+                                    <Button Grid.Column="3" Content="&#xE711;"
+                                            FontFamily="Segoe Fluent Icons" FontSize="10"
+                                            Tag="{x:Bind Index}" Click="OnRemoveQueueItem"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            ToolTipService.ToolTip="Remove from queue" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>

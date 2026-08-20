@@ -26,14 +26,23 @@ public sealed partial class AlbumPage : Page
         Unloaded += (_, _) => _timer.Stop();
     }
 
+    private string _containerId = "";
+
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
-        var containerId = e.Parameter as string ?? "";
+        _containerId = e.Parameter as string ?? "";
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
         BusyRing.Visibility = Visibility.Visible;
-        await _vm.LoadAsync(containerId);
+        RetryButton.Visibility = Visibility.Collapsed;
+        await _vm.LoadAsync(_containerId);
         BusyRing.Visibility = Visibility.Collapsed;
+        RetryButton.Visibility = _vm.Status is not null && _vm.TrackGroups.Count == 0
+            ? Visibility.Visible : Visibility.Collapsed;
         RefreshStashButton();
-        // Grouped source is set after the data loads (a CVS in resources can't bind to DataContext).
         var cvs = (CollectionViewSource)Resources["TracksSource"];
         cvs.Source = _vm.TrackGroups;
         TracksList.ItemsSource = cvs.View;
@@ -72,4 +81,6 @@ public sealed partial class AlbumPage : Page
     {
         if (sender is FrameworkElement { Tag: TrackItem t }) _vm.EnqueueOne(t);
     }
+
+    private async void OnRetry(object sender, RoutedEventArgs e) => await ReloadAsync();
 }

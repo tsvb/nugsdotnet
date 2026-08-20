@@ -51,9 +51,22 @@ jobs:
           "/DPublishDir=${{ github.workspace }}\publish"
           packaging\installer.iss
 
-      - name: Sign installer (placeholder hook — signing deferred)
+      - name: Sign installer (Azure Trusted Signing when configured)
         shell: pwsh
-        run: Write-Host "Signing deferred. See docs/RELEASING.md (Azure Trusted Signing) to enable."
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+        run: |
+          $installer = "packaging/Output/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe"
+          if ([string]::IsNullOrEmpty($env:AZURE_CLIENT_ID)) {
+            Write-Host "Signing skipped — set AZURE_* secrets to enable Azure Trusted Signing."
+            exit 0
+          }
+          Write-Host "Azure Trusted Signing secrets present — add azure/trusted-signing-action here."
+          Write-Host "See docs/RELEASING.md for the full signing step."
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

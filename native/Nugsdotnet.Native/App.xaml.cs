@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Nugsdotnet.Native.Core;
 using Nugsdotnet.Native.Imaging;
 using Nugsdotnet.Native.Playback;
+using Nugsdotnet.Native.Services;
 using Nugsdotnet.Native.ViewModels;
 
 namespace Nugsdotnet.Native;
@@ -28,10 +29,6 @@ public partial class App : Application
     {
         var sc = new ServiceCollection();
 
-        // One HttpClient shared across auth, catalog, stream-resolve, and the
-        // audio range reads. Connection lifetime is bounded so a long-running
-        // session picks up CDN DNS changes; timeout + buffer cap keep a hung
-        // or oversized response from pinning the UI.
         sc.AddSingleton(_ => new HttpClient(new SocketsHttpHandler
         {
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
@@ -46,19 +43,18 @@ public partial class App : Application
             MaxResponseContentBufferSize = 8 * 1024 * 1024,
         });
 
-        // Core services (reimplemented, no dependency on the original project).
         sc.AddSingleton<NugsSessionStore>();
         sc.AddSingleton<NugsAuth>();
         sc.AddSingleton<NugsCatalog>();
         sc.AddSingleton<NugsStreamResolver>();
         sc.AddSingleton<AccountLocalStore>();
+        sc.AddSingleton<SettingsStore>();
+        sc.AddSingleton<UpdateChecker>();
         sc.AddSingleton(sp => new RecentsStore(sp.GetRequiredService<AccountLocalStore>()));
         sc.AddSingleton(sp => new StashStore(sp.GetRequiredService<AccountLocalStore>()));
         sc.AddSingleton(sp => new PlaybackStateStore(sp.GetRequiredService<AccountLocalStore>()));
         sc.AddSingleton<ImageLoader>();
 
-        // Playback + view models. Home is a singleton so the artist list and
-        // dashboard survive navigation (it was refetching per visit as transient).
         sc.AddSingleton<PlayerService>();
         sc.AddSingleton<ShellViewModel>();
         sc.AddTransient<LoginViewModel>();
@@ -66,6 +62,8 @@ public partial class App : Application
         sc.AddTransient<SearchResultsViewModel>();
         sc.AddTransient<ArtistViewModel>();
         sc.AddTransient<AlbumViewModel>();
+        sc.AddTransient<SettingsViewModel>();
+        sc.AddTransient<StashViewModel>();
 
         return sc.BuildServiceProvider();
     }

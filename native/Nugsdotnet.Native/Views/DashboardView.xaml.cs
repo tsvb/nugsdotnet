@@ -6,21 +6,9 @@ using Microsoft.UI.Xaml.Media;
 using Nugsdotnet.Native.Core;
 using Nugsdotnet.Native.Imaging;
 using Nugsdotnet.Native.Playback;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Nugsdotnet.Native.Views;
-
-/// <summary>One row of the up-next list. Rebuilt wholesale on queue change, so
-/// plain get-only properties are enough for the (OneTime) compiled bindings.</summary>
-public sealed class QueueRow
-{
-    public int Index { get; init; }
-    public string Title { get; init; } = "";
-    public bool IsCurrent { get; init; }
-
-    public string Position => $"{Index + 1:00}";
-    public Brush TitleBrush =>
-        (Brush)Application.Current.Resources[IsCurrent ? "BrandAccent" : "BrandText"];
-}
 
 /// <summary>
 /// Right-hand inspector: a mini player (art, seek, transport), the signal-path
@@ -36,6 +24,7 @@ public sealed partial class DashboardView : UserControl
     private int _queueVersion = -1;
     private string? _artTrackId;
     private bool _scrubbing;
+    private int _reorderFrom = -1;
 
     public DashboardView()
     {
@@ -162,6 +151,43 @@ public sealed partial class DashboardView : UserControl
     private void OnQueueClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is QueueRow r) _player.PlayAt(r.Index);
+    }
+
+    private void OnRemoveQueueItem(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is int index)
+            _player.RemoveAt(index);
+    }
+
+    private void OnClearQueue(object sender, RoutedEventArgs e) => _player.ClearQueue();
+
+    private void OnQueueDragStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        if (e.Items.FirstOrDefault() is QueueRow r)
+            _reorderFrom = r.Index;
+    }
+
+    private void OnQueueReorder(object sender, DragItemsCompletedEventArgs e)
+    {
+        if (e.DropResult != DataPackageOperation.Move || _reorderFrom < 0) return;
+        if (e.Items.FirstOrDefault() is not QueueRow moved)
+        {
+            _reorderFrom = -1;
+            return;
+        }
+
+        var to = -1;
+        for (var i = 0; i < QueueList.Items.Count; i++)
+        {
+            if (QueueList.Items[i] is QueueRow r && r.Index == moved.Index)
+            {
+                to = i;
+                break;
+            }
+        }
+        if (to >= 0 && to != _reorderFrom)
+            _player.MoveQueueItem(_reorderFrom, to);
+        _reorderFrom = -1;
     }
 
     private void OnPlayPause(object sender, RoutedEventArgs e) => _player.TogglePlayPause();

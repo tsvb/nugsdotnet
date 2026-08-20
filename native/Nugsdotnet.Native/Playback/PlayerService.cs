@@ -47,6 +47,12 @@ public sealed class PlayerService
     private TimeSpan? _pendingSeek;   // resume point, applied on the next MediaOpened
     private bool _restored;           // RestoreAsync runs at most once
     private Windows.Web.Http.HttpClient? _hlsHttp;
+    private readonly Random _rng = new();
+    private List<int> _shuffleOrder = new();
+    private int _shufflePos = -1;
+
+    public RepeatMode Repeat { get; set; }
+    public bool Shuffle { get; set; }
 
     /// <summary>What a playback-list item corresponds to: queue slot + resolved
     /// stream. Stream is null for HLS (adaptive source — no byte stream to meter).</summary>
@@ -98,8 +104,43 @@ public sealed class PlayerService
         get { lock (_gate) return _index >= 0 && _index < _queue.Count ? _queue[_index] : null; }
     }
 
-    public bool HasNext { get { lock (_gate) return _index >= 0 && _index < _queue.Count - 1; } }
-    public bool HasPrevious { get { lock (_gate) return _index > 0; } }
+    public bool HasNext
+    {
+        get
+        {
+            lock (_gate)
+            {
+                if (_index < 0 || _queue.Count == 0) return false;
+                if (Repeat is RepeatMode.One or RepeatMode.All) return true;
+                if (Shuffle)
+                {
+                    if (_shuffleOrder.Count != _queue.Count) RebuildShuffleOrderLocked();
+                    var pos = _shufflePos >= 0 ? _shufflePos : _shuffleOrder.IndexOf(_index);
+                    return pos >= 0 && pos < _shuffleOrder.Count - 1;
+                }
+                return _index < _queue.Count - 1;
+            }
+        }
+    }
+
+    public bool HasPrevious
+    {
+        get
+        {
+            lock (_gate)
+            {
+                if (_index < 0 || _queue.Count == 0) return false;
+                if (Repeat is RepeatMode.One or RepeatMode.All) return true;
+                if (Shuffle)
+                {
+                    if (_shuffleOrder.Count != _queue.Count) RebuildShuffleOrderLocked();
+                    var pos = _shufflePos >= 0 ? _shufflePos : _shuffleOrder.IndexOf(_index);
+                    return pos > 0;
+                }
+                return _index > 0;
+            }
+        }
+    }
     public bool IsPlaying => _player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing;
     public TimeSpan Duration => _player.PlaybackSession.NaturalDuration;
 
@@ -154,6 +195,7 @@ public sealed class PlayerService
             _queue.AddRange(tracks);
             start = _index = Math.Clamp(startIndex, 0, _queue.Count - 1);
             _pendingSeek = null;   // explicit navigation cancels a pending resume point
+            RebuildShuffleOrderLocked();
             QueueVersion++;
         }
         SaveSoon();
@@ -219,13 +261,138 @@ public sealed class PlayerService
         JumpTo(index);
     }
 
+    /// <summary>Remove one track from the queue.</summary>
+    public void RemoveAt(int index)
+    {
+        int rebuildAt = -1;
+        lock (_gate)
+        {
+            if (index < 0 || index >= _queue.Count) return;
+            _queue.RemoveAt(index);
+            if (_queue.Count == 0)
+            {
+                _loadToken++;
+                _lookahead = false;
+                if (_list is { } old) old.CurrentItemChanged -= OnCurrentItemChanged;
+                _list = null;
+                _items.Clear();
+                _index = -1;
+                _pendingSeek = null;
+                _shuffleOrder.Clear();
+                _shufflePos = -1;
+                QueueVersion++;
+            }
+            else
+            {
+                if (index < _index) _index--;
+                else if (index == _index) rebuildAt = _index = Math.Min(_index, _queue.Count - 1);
+                RebuildShuffleOrderLocked();
+                InvalidatePlaybackLocked();
+                QueueVersion++;
+            }
+        }
+        if (rebuildAt < 0 && _index < 0)
+        {
+            CurrentPick = null;
+            CurrentStream = null;
+            Status = null;
+            _player.Pause();
+            _player.Source = null;
+        }
+        SaveSoon();
+        if (rebuildAt >= 0) _ = RebuildAtAsync(rebuildAt);
+    }
+
+    /// <summary>Drop every queued track and stop playback.</summary>
+    public void ClearQueue()
+    {
+        lock (_gate)
+        {
+            _loadToken++;
+            _lookahead = false;
+            if (_list is { } old) old.CurrentItemChanged -= OnCurrentItemChanged;
+            _list = null;
+            _items.Clear();
+            _queue.Clear();
+            _index = -1;
+            _pendingSeek = null;
+            _shuffleOrder.Clear();
+            _shufflePos = -1;
+            QueueVersion++;
+        }
+        CurrentPick = null;
+        CurrentStream = null;
+        Status = null;
+        _player.Pause();
+        _player.Source = null;
+        SaveSoon();
+    }
+
+    /// <summary>Move a queue slot to a new position (dashboard reorder).</summary>
+    public void MoveQueueItem(int from, int to)
+    {
+        int rebuildAt = -1;
+        lock (_gate)
+        {
+            if (from == to || from < 0 || from >= _queue.Count || to < 0 || to >= _queue.Count) return;
+            var track = _queue[from];
+            _queue.RemoveAt(from);
+            _queue.Insert(to, track);
+            if (_index == from) rebuildAt = _index = to;
+            else if (from < _index && to >= _index) _index--;
+            else if (from > _index && to <= _index) _index++;
+            RebuildShuffleOrderLocked();
+            InvalidatePlaybackLocked();
+            QueueVersion++;
+        }
+        SaveSoon();
+        if (rebuildAt >= 0) _ = RebuildAtAsync(rebuildAt);
+    }
+
+    public void ToggleShuffle()
+    {
+        lock (_gate)
+        {
+            Shuffle = !Shuffle;
+            RebuildShuffleOrderLocked();
+            QueueVersion++;
+        }
+    }
+
+    public void CycleRepeat()
+    {
+        Repeat = Repeat switch
+        {
+            RepeatMode.Off => RepeatMode.All,
+            RepeatMode.All => RepeatMode.One,
+            _ => RepeatMode.Off,
+        };
+        QueueVersion++;
+    }
+
     public void Next()
     {
         int target;
         lock (_gate)
         {
-            if (_index < 0 || _index >= _queue.Count - 1) return;
-            target = _index + 1;
+            if (_index < 0 || _queue.Count == 0) return;
+            if (Repeat == RepeatMode.One)
+            {
+                target = _index;
+            }
+            else if (Shuffle)
+            {
+                if (!TryAdvanceShuffleLocked(out target)) return;
+            }
+            else if (_index < _queue.Count - 1)
+            {
+                target = _index + 1;
+            }
+            else if (Repeat == RepeatMode.All)
+            {
+                target = 0;
+            }
+            else return;
         }
         JumpTo(target);
     }
@@ -235,8 +402,20 @@ public sealed class PlayerService
         int target;
         lock (_gate)
         {
-            if (_index <= 0) return;
-            target = _index - 1;
+            if (_index <= 0 && Repeat != RepeatMode.All) return;
+            if (Shuffle)
+            {
+                if (!TryRetreatShuffleLocked(out target)) return;
+            }
+            else if (_index > 0)
+            {
+                target = _index - 1;
+            }
+            else if (Repeat == RepeatMode.All)
+            {
+                target = _queue.Count - 1;
+            }
+            else return;
         }
         JumpTo(target);
     }
@@ -367,9 +546,24 @@ public sealed class PlayerService
         lock (_gate)
         {
             _pendingSeek = null;
-            if (_index >= 0 && _index < _queue.Count - 1)
+            if (_index < 0 || _queue.Count == 0) return;
+            if (Repeat == RepeatMode.One)
+            {
+                next = _index;
+            }
+            else if (Shuffle)
+            {
+                if (TryAdvanceShuffleLocked(out next)) QueueVersion++;
+            }
+            else if (_index < _queue.Count - 1)
             {
                 next = ++_index;
+                QueueVersion++;
+            }
+            else if (Repeat == RepeatMode.All)
+            {
+                next = _index = 0;
+                _shufflePos = -1;
                 QueueVersion++;
             }
         }
@@ -567,6 +761,79 @@ public sealed class PlayerService
                 _items.Remove(item);
             }
         }
+    }
+
+    /// <summary>Queue structure changed — drop the pre-rolled list so it rebuilds cleanly.</summary>
+    private void InvalidatePlaybackLocked()
+    {
+        _loadToken++;
+        _lookahead = false;
+        DropLookaheadLocked();
+    }
+
+    private void RebuildShuffleOrderLocked()
+    {
+        _shuffleOrder.Clear();
+        _shufflePos = -1;
+        if (!Shuffle || _queue.Count == 0) return;
+        _shuffleOrder.AddRange(Enumerable.Range(0, _queue.Count));
+        for (var i = _shuffleOrder.Count - 1; i > 0; i--)
+        {
+            var j = _rng.Next(i + 1);
+            (_shuffleOrder[i], _shuffleOrder[j]) = (_shuffleOrder[j], _shuffleOrder[i]);
+        }
+        if (_index >= 0)
+        {
+            _shufflePos = _shuffleOrder.IndexOf(_index);
+            if (_shufflePos < 0) _shufflePos = 0;
+        }
+    }
+
+    private bool TryAdvanceShuffleLocked(out int target)
+    {
+        target = -1;
+        if (_queue.Count == 0) return false;
+        if (_shuffleOrder.Count != _queue.Count) RebuildShuffleOrderLocked();
+        if (_shufflePos < 0) _shufflePos = _shuffleOrder.IndexOf(_index);
+        if (_shufflePos < 0) _shufflePos = 0;
+        if (_shufflePos < _shuffleOrder.Count - 1)
+        {
+            target = _shuffleOrder[++_shufflePos];
+            _index = target;
+            return true;
+        }
+        if (Repeat == RepeatMode.All)
+        {
+            RebuildShuffleOrderLocked();
+            _shufflePos = 0;
+            target = _shuffleOrder[0];
+            _index = target;
+            return true;
+        }
+        return false;
+    }
+
+    private bool TryRetreatShuffleLocked(out int target)
+    {
+        target = -1;
+        if (_queue.Count == 0) return false;
+        if (_shuffleOrder.Count != _queue.Count) RebuildShuffleOrderLocked();
+        if (_shufflePos < 0) _shufflePos = _shuffleOrder.IndexOf(_index);
+        if (_shufflePos < 0) _shufflePos = 0;
+        if (_shufflePos > 0)
+        {
+            target = _shuffleOrder[--_shufflePos];
+            _index = target;
+            return true;
+        }
+        if (Repeat == RepeatMode.All)
+        {
+            _shufflePos = _shuffleOrder.Count - 1;
+            target = _shuffleOrder[_shufflePos];
+            _index = target;
+            return true;
+        }
+        return false;
     }
 
     private async Task<Resolved?> ResolvePlayableAsync(NowPlaying track)
