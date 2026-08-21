@@ -69,7 +69,7 @@ jobs:
           Write-Host "See docs/RELEASING.md for the full signing step."
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: packaging/Output/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe
           generate_release_notes: true
