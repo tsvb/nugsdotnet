@@ -208,22 +208,22 @@
                                 Click="OnClearFilters" Style="{StaticResource IconButtonStyle}"
                                 HorizontalAlignment="Right" Visibility="Collapsed" />
                     </Grid>
-                    <ItemsControl x:Name="LettersStrip" ItemsSource="{Binding Letters}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="20" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:LetterChip">
-                                <Button Content="{x:Bind Letter}" Tag="{x:Bind Letter}"
-                                        Click="OnLetterClick" Style="{StaticResource IconButtonStyle}"
-                                        Foreground="{x:Bind Foreground}" MinWidth="32" Padding="6,4"
-                                        FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
-                                        ToolTipService.ToolTip="Jump to letter" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <ScrollViewer x:Name="LettersStrip"
+                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                        <ItemsControl ItemsSource="{Binding Letters}"
+                                      ItemsPanel="{StaticResource RailPanel}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LetterChip">
+                                    <Button Content="{x:Bind Letter}" Tag="{x:Bind Letter}"
+                                            Click="OnLetterClick" Style="{StaticResource IconButtonStyle}"
+                                            Foreground="{x:Bind Foreground}" MinWidth="32" Padding="6,4"
+                                            FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                                            ToolTipService.ToolTip="Jump to letter" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                     <TextBox PlaceholderText="Filter artists…" MaxWidth="360" HorizontalAlignment="Left"
                              Text="{Binding Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
