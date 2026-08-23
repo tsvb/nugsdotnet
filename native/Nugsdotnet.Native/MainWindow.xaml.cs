@@ -74,6 +74,7 @@ public sealed partial class MainWindow : Window
             pos.X, pos.Y, size.Width, size.Height,
             Dashboard.Visibility == Visibility.Visible));
         _player.SaveNow();
+        _ = App.Services.GetRequiredService<Playback.JournalTracker>().FlushNowAsync();
     }
 
     private void BrandTitleBar()
