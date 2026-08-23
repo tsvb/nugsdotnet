@@ -1,0 +1,75 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
+using Nugsdotnet.Native.Core;
+using Nugsdotnet.Native.ViewModels;
+
+namespace Nugsdotnet.Native.Views.Pages;
+
+public sealed partial class ArtistsPage : Page
+{
+    private readonly ArtistsViewModel _vm;
+
+    public ArtistsPage()
+    {
+        InitializeComponent();
+        _vm = App.Services.GetRequiredService<ArtistsViewModel>();
+        DataContext = _vm;
+        _vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ArtistsViewModel.IsFiltered))
+                RefreshChrome();
+        };
+    }
+
+    protected override async void OnNavigatedTo(NavigationEventArgs e) => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        BusyRing.Visibility = Visibility.Visible;
+        RetryButton.Visibility = Visibility.Collapsed;
+        await _vm.LoadArtistsAsync();
+        BusyRing.Visibility = Visibility.Collapsed;
+        RetryButton.Visibility = _vm.Status is not null && _vm.Artists.Count == 0
+            ? Visibility.Visible : Visibility.Collapsed;
+        RefreshChrome();
+    }
+
+    private void RefreshChrome()
+    {
+        LettersStrip.Visibility = _vm.Letters.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClearFilterButton.Visibility = _vm.IsFiltered ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnArtistClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is ArtistEntry a)
+            Frame.Navigate(typeof(ArtistPage), a.Id);
+    }
+
+    private void OnLetterClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string letter })
+        {
+            _vm.ToggleLetter(letter);
+            RefreshChrome();
+        }
+    }
+
+    private void OnClearFilters(object sender, RoutedEventArgs e)
+    {
+        _vm.ClearFilters();
+        RefreshChrome();
+    }
+
+    private async void OnRetry(object sender, RoutedEventArgs e)
+    {
+        BusyRing.Visibility = Visibility.Visible;
+        RetryButton.Visibility = Visibility.Collapsed;
+        await _vm.ReloadArtistsAsync();
+        BusyRing.Visibility = Visibility.Collapsed;
+        RetryButton.Visibility = _vm.Status is not null && _vm.Artists.Count == 0
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+}

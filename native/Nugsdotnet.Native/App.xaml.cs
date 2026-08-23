@@ -61,6 +61,7 @@ public partial class App : Application
         sc.AddSingleton<ShellViewModel>();
         sc.AddTransient<LoginViewModel>();
         sc.AddSingleton<HomeViewModel>();
+        sc.AddSingleton<ArtistsViewModel>();
         sc.AddTransient<SearchResultsViewModel>();
         sc.AddTransient<ArtistViewModel>();
         sc.AddTransient<AlbumViewModel>();
