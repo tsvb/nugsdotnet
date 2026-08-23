@@ -39,7 +39,7 @@ no content is downloaded, redistributed, or stripped of DRM. Personal use only.
 
 | | |
 |---|---|
-| **Home** | Time-of-day greeting, Recently Played and Stash art rails, filterable artist chips |
+| **Home** | Time-of-day greeting, continue-listening hero, Recently Played and Stash rails, your artists, A–Z artist index |
 | **Browse** | Artist pages, set-grouped album pages, sectioned search |
 | **Transport** | Prev / −15 / play / +30 / next, scrub-safe seek, mute, lossless format badge |
 | **Inspector** | `Ctrl+D` — mini player, live SIGNAL PATH metrics, UP NEXT queue |
