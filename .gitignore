@@ -16,3 +16,4 @@ packaging/Output/
 *.log
 .DS_Store
 .superpowers/
+.worktrees/
