@@ -3,12 +3,13 @@
     x:Class="Nugsdotnet.Native.Views.Pages.HomePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Nugsdotnet.Native.Views.Controls"
     xmlns:core="using:Nugsdotnet.Native.Core"
     xmlns:vm="using:Nugsdotnet.Native.ViewModels"
     Background="{StaticResource BrandBg}">
 
     <Page.Resources>
-        <!-- One card template for both rails (recents + stash). -->
+        <!-- One card template for the shelf rail. -->
         <DataTemplate x:Key="ShowCardTemplate" x:DataType="vm:ShowCard">
             <Button Style="{StaticResource CardButtonStyle}"
                     Tag="{x:Bind}" Click="OnCardClick">
@@ -51,201 +52,205 @@
         </DataTemplate>
     </Page.Resources>
 
-    <!-- The artist grid is the scrolling element; the hero + rails live in its
-         header so several hundred artist chips stay virtualized. -->
-    <GridView Padding="24,20,24,12"
-              ItemsSource="{Binding Artists}" SelectionMode="None"
-              IsItemClickEnabled="True" ItemClick="OnArtistClick">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
+                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+        <StackPanel Padding="24,20,24,24" Spacing="20" MaxWidth="1100" HorizontalAlignment="Left">
 
-        <GridView.Header>
-            <StackPanel Spacing="16" Margin="0,0,0,16">
+            <!-- ── Greeting zone — night count, run state, last-night recap ── -->
+            <StackPanel Spacing="6">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
-                    <TextBlock Text="{Binding Greeting}"
+                    <TextBlock Text="{Binding Heading}"
                                FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
                                FontSize="34" CharacterSpacing="20"
                                Foreground="{StaticResource BrandText}" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20"
-                                VerticalAlignment="Center">
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding RecentMeter}"
-                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="16"
-                                       Foreground="{StaticResource BrandText}" HorizontalAlignment="Right" />
-                            <TextBlock Text="RECENT" Style="{StaticResource FaceplateLabelStyle}"
-                                       HorizontalAlignment="Right" />
-                        </StackPanel>
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding StashMeter}"
-                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="16"
-                                       Foreground="{StaticResource BrandText}" HorizontalAlignment="Right" />
-                            <TextBlock Text="STASH" Style="{StaticResource FaceplateLabelStyle}"
-                                       HorizontalAlignment="Right" />
-                        </StackPanel>
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding ArtistMeter}"
-                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="16"
-                                       Foreground="{StaticResource BrandText}" HorizontalAlignment="Right" />
-                            <TextBlock Text="ARTISTS" Style="{StaticResource FaceplateLabelStyle}"
-                                       HorizontalAlignment="Right" />
-                        </StackPanel>
+                    <TextBlock Grid.Column="1" x:Name="RunLabel" Text="{Binding RunLabel}"
+                               VerticalAlignment="Center"
+                               FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                               Foreground="{StaticResource BrandAccent}" />
+                </Grid>
+                <TextBlock x:Name="RecapLineText" Text="{Binding RecapLine}"
+                           FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                           Foreground="{StaticResource BrandDim}" />
+            </StackPanel>
+
+            <!-- ── Journal hero — VU meters, charts, timeline, milestone ───── -->
+            <StackPanel x:Name="JournalSection" Spacing="12" Visibility="Collapsed">
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="20">
+                    <controls:VuMeter Grid.Column="0" Caption="HOURS ON AIR"
+                                      ValueText="{Binding HoursText}" ScaleEnd="{Binding HoursScale}"
+                                      Needle="{Binding HoursNeedle}" RedZone="{Binding HoursRed}" />
+                    <controls:VuMeter Grid.Column="1" Caption="SHOWS LOGGED"
+                                      ValueText="{Binding ShowsText}" ScaleEnd="{Binding ShowsScale}"
+                                      Needle="{Binding ShowsNeedle}" RedZone="{Binding ShowsRed}" />
+                    <controls:VuMeter Grid.Column="2" Caption="TRACKS"
+                                      ValueText="{Binding TracksText}" ScaleEnd="{Binding TracksScale}"
+                                      Needle="{Binding TracksNeedle}" RedZone="{Binding TracksRed}" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+                    <!-- Top artists · 30 nights -->
+                    <StackPanel Grid.Column="0" Spacing="8">
+                        <TextBlock Text="TOP ARTISTS · 30 NIGHTS" Style="{StaticResource FaceplateLabelStyle}" />
+                        <ItemsControl ItemsSource="{Binding TopArtists}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="core:TopArtistRow">
+                                    <Button Style="{StaticResource CardButtonStyle}" Padding="4,2"
+                                            Tag="{x:Bind Name}" Click="OnTopArtistClick">
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0" Text="{x:Bind RankText}"
+                                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                                       Foreground="{StaticResource BrandDim}" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" Width="140"
+                                                       FontFamily="{StaticResource BrandBodyFont}" FontSize="13"
+                                                       Foreground="{StaticResource BrandText}"
+                                                       TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" />
+                                            <!-- bar scales to the leader via star weights
+                                                 (definitions applied in OnStarsLoaded —
+                                                 WinUI rejects x:Bind on the collections) -->
+                                            <Grid Grid.Column="2" Height="6" VerticalAlignment="Center"
+                                                  Background="{StaticResource BrandSurface2}"
+                                                  ColumnDefinitions="*"
+                                                  Loaded="OnStarsLoaded" Tag="{x:Bind BarStars}">
+                                                <Border Grid.Column="0" Height="6" CornerRadius="2"
+                                                        Background="{StaticResource BrandAccent}" />
+                                            </Grid>
+                                            <TextBlock Grid.Column="3" Text="{x:Bind HoursLabel}"
+                                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="10"
+                                                       Foreground="{StaticResource BrandDim}" />
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Last 14 nights -->
+                    <StackPanel Grid.Column="1" Spacing="8">
+                        <TextBlock Text="LAST 14 NIGHTS" Style="{StaticResource FaceplateLabelStyle}" />
+                        <ItemsControl ItemsSource="{Binding Nights}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="core:NightBar">
+                                    <Grid Width="18" Height="48" VerticalAlignment="Bottom"
+                                          ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                        <!-- amber bar, height via star rows -->
+                                        <Grid RowDefinitions="*"
+                                              Loaded="OnStarsLoaded" Tag="{x:Bind BarStars}"
+                                              Visibility="{x:Bind IsListening}">
+                                            <Border Grid.Row="1" CornerRadius="1,1,0,0"
+                                                    Background="{StaticResource BrandAccent}" />
+                                        </Grid>
+                                        <!-- hollow ring for a grace night -->
+                                        <Border CornerRadius="1" BorderBrush="{StaticResource BrandBorder}"
+                                                BorderThickness="1"
+                                                Visibility="{x:Bind IsGrace}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <ProgressRing x:Name="BusyRing" IsActive="True" Visibility="Collapsed"
-                                  Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
-                    <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
-                               Foreground="{StaticResource BrandDim}" />
-                    <Button x:Name="RetryButton" Content="Retry" Click="OnRetry"
-                            Style="{StaticResource IconButtonStyle}" Visibility="Collapsed" />
+                <TextBlock x:Name="MilestoneLineText" Text="{Binding MilestoneLine}"
+                           FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                           Foreground="{StaticResource BrandAccent}" />
+            </StackPanel>
+
+            <!-- ── Day one — the journal begins tonight ────────────────────── -->
+            <Border x:Name="BeginSection" CornerRadius="6" Padding="16,12"
+                    Background="{StaticResource BrandSurface}"
+                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="1"
+                    Visibility="Collapsed">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="THE JOURNAL BEGINS TONIGHT"
+                               Style="{StaticResource FaceplateLabelStyle}"
+                               Foreground="{StaticResource BrandAccent}" />
+                    <TextBlock Text="Press play and the meter starts running — hours, shows, and night runs land here."
+                               FontFamily="{StaticResource BrandBodyFont}" FontSize="13"
+                               Foreground="{StaticResource BrandDim}" TextWrapping="Wrap" />
                 </StackPanel>
+            </Border>
 
-                <TextBlock x:Name="FirstRunCue"
-                           Text="Search a band or open an artist — recents, stash, and resume land here."
-                           FontFamily="{StaticResource BrandBodyFont}" FontSize="13"
-                           Foreground="{StaticResource BrandDim}" Visibility="Collapsed" />
-
-                <!-- ── CONTINUE / ON THE DECK — resume hero ─────────────── -->
-                <StackPanel x:Name="ContinueSection" Spacing="10" Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
-                                Background="{StaticResource BrandAccent}" />
-                        <TextBlock Text="{Binding ContinueCue}" Style="{StaticResource FaceplateLabelStyle}"
+            <!-- ── Resume strip — ON THE DECK / CONTINUE ───────────────────── -->
+            <StackPanel x:Name="ContinueSection" Spacing="8" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                            Background="{StaticResource BrandAccent}" />
+                    <TextBlock Text="{Binding ContinueCue}" Style="{StaticResource FaceplateLabelStyle}"
+                               Foreground="{StaticResource BrandAccent}" />
+                </StackPanel>
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="14" VerticalAlignment="Center">
+                    <Button Grid.Column="0" Style="{StaticResource CardButtonStyle}" Padding="0"
+                            Click="OnContinueOpen" IsEnabled="{Binding HasShow}">
+                        <Border Width="56" Height="56" CornerRadius="4"
+                                Background="{StaticResource BrandSurface2}"
+                                BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                            <Image Source="{Binding ContinueArt}" Stretch="UniformToFill" />
+                        </Border>
+                    </Button>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2" MaxWidth="420">
+                        <TextBlock Text="{Binding ContinueTitle}"
+                                   FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
+                                   FontSize="15" Foreground="{StaticResource BrandText}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding ContinueSub}"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
+                                   Foreground="{StaticResource BrandDim}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding ContinuePosition}"
+                                   FontFamily="{StaticResource BrandMonoFont}" FontSize="11"
                                    Foreground="{StaticResource BrandAccent}" />
                     </StackPanel>
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
-                        <Button Style="{StaticResource CardButtonStyle}" Padding="0"
-                                Click="OnContinueOpen" IsEnabled="{Binding HasShow}">
-                            <Border Width="120" Height="120" CornerRadius="4"
-                                    Background="{StaticResource BrandSurface2}"
-                                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
-                                <Image Source="{Binding ContinueArt}" Stretch="UniformToFill" />
-                            </Border>
-                        </Button>
-                        <StackPanel VerticalAlignment="Center" Spacing="6">
-                            <TextBlock Text="{Binding ContinueTitle}"
-                                       FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
-                                       FontSize="18" Foreground="{StaticResource BrandText}"
-                                       TextWrapping="Wrap" MaxLines="2"
-                                       TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding ContinueSub}"
-                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
-                                       Foreground="{StaticResource BrandDim}"
-                                       TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding ContinuePosition}"
-                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
-                                       Foreground="{StaticResource BrandAccent}" />
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                <Button Content="{Binding ContinuePlayLabel}" Click="OnContinuePlay"
-                                        Style="{StaticResource PlayButtonStyle}"
-                                        ToolTipService.ToolTip="Play / pause (Ctrl+Space)" />
-                                <Button x:Name="ContinueOpenButton" Content="open show"
-                                        Click="OnContinueOpen" Style="{StaticResource IconButtonStyle}"
-                                        Visibility="Collapsed" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
+                    <Button Grid.Column="3" Content="{Binding ContinuePlayLabel}" Click="OnContinuePlay"
+                            Style="{StaticResource PlayButtonStyle}"
+                            ToolTipService.ToolTip="Play / pause (Ctrl+Space)" />
+                    <Button Grid.Column="4" x:Name="ContinueOpenButton" Content="open show"
+                            Click="OnContinueOpen" Style="{StaticResource IconButtonStyle}"
+                            VerticalAlignment="Center" Visibility="Collapsed" />
+                </Grid>
+            </StackPanel>
 
-                <!-- ── RECENTLY PLAYED — horizontal art-card rail ─────────── -->
-                <StackPanel x:Name="RecentSection" Spacing="10" Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
+            <!-- ── TONIGHT'S SHELF — recents + stash merged ─────────────────── -->
+            <StackPanel x:Name="ShelfSection" Spacing="10" Visibility="Collapsed">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                         <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
                                 Background="{StaticResource BrandAccent}" />
-                        <TextBlock Text="RECENTLY PLAYED" Style="{StaticResource FaceplateLabelStyle}" />
+                        <TextBlock Text="TONIGHT'S SHELF" Style="{StaticResource FaceplateLabelStyle}" />
                     </StackPanel>
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                        <ItemsControl ItemsSource="{Binding Recent}"
-                                      ItemsPanel="{StaticResource RailPanel}"
-                                      ItemTemplate="{StaticResource ShowCardTemplate}" />
-                    </ScrollViewer>
-                </StackPanel>
+                    <Button Grid.Column="2" Content="see all" Click="OnSeeAllStash"
+                            Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" />
+                </Grid>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                    <ItemsControl ItemsSource="{Binding Shelf}"
+                                  ItemsPanel="{StaticResource RailPanel}"
+                                  ItemTemplate="{StaticResource ShowCardTemplate}" />
+                </ScrollViewer>
+            </StackPanel>
 
-                <!-- ── STASH — the local library rail (display capped; label
-                     carries the full count) ───────────────────────────────── -->
-                <StackPanel x:Name="StashSection" Spacing="10" Visibility="Collapsed">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                            <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
-                                    Background="{StaticResource BrandAccent}" />
-                            <TextBlock Text="{Binding StashLabel}" Style="{StaticResource FaceplateLabelStyle}" />
-                        </StackPanel>
-                        <Button Grid.Column="2" Content="see all" Click="OnSeeAllStash"
-                                Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" />
-                    </Grid>
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                        <ItemsControl ItemsSource="{Binding Stash}"
-                                      ItemsPanel="{StaticResource RailPanel}"
-                                      ItemTemplate="{StaticResource ShowCardTemplate}" />
-                    </ScrollViewer>
-                </StackPanel>
-
-                <!-- ── YOUR ARTISTS — recents + stash, matched to the catalog -->
-                <StackPanel x:Name="YourArtistsSection" Spacing="10" Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
+            <!-- ── YOUR ARTISTS + full index ────────────────────────────────── -->
+            <StackPanel x:Name="YourArtistsSection" Spacing="10" Visibility="Collapsed">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                         <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
                                 Background="{StaticResource BrandAccent}" />
                         <TextBlock Text="YOUR ARTISTS" Style="{StaticResource FaceplateLabelStyle}" />
                     </StackPanel>
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                        <ItemsControl ItemsSource="{Binding YourArtists}"
-                                      ItemsPanel="{StaticResource RailPanel}"
-                                      ItemTemplate="{StaticResource ArtistChipTemplate}" />
-                    </ScrollViewer>
-                </StackPanel>
-
-                <!-- ── ARTISTS — A–Z index + live filter over the grid below ─ -->
-                <StackPanel Spacing="10" Margin="0,6,0,0">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                            <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
-                                    Background="{StaticResource BrandAccent}" />
-                            <TextBlock Text="{Binding ArtistsLabel}" Style="{StaticResource FaceplateLabelStyle}" />
-                        </StackPanel>
-                        <Button Grid.Column="2" x:Name="ClearFilterButton" Content="clear"
-                                Click="OnClearFilters" Style="{StaticResource IconButtonStyle}"
-                                HorizontalAlignment="Right" Visibility="Collapsed" />
-                    </Grid>
-                    <ScrollViewer x:Name="LettersStrip"
-                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-                        <ItemsControl ItemsSource="{Binding Letters}"
-                                      ItemsPanel="{StaticResource RailPanel}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:LetterChip">
-                                    <Button Content="{x:Bind Letter}" Tag="{x:Bind Letter}"
-                                            Click="OnLetterClick" Style="{StaticResource IconButtonStyle}"
-                                            Foreground="{x:Bind Foreground}" MinWidth="32" Padding="6,4"
-                                            FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
-                                            ToolTipService.ToolTip="Jump to letter" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <TextBox PlaceholderText="Filter artists…" MaxWidth="360" HorizontalAlignment="Left"
-                             Text="{Binding Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
+                    <Button Grid.Column="2" Content="full index ▸" Click="OnFullIndex"
+                            Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" />
+                </Grid>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                    <ItemsControl ItemsSource="{Binding YourArtists}"
+                                  ItemsPanel="{StaticResource RailPanel}"
+                                  ItemTemplate="{StaticResource ArtistChipTemplate}" />
+                </ScrollViewer>
             </StackPanel>
-        </GridView.Header>
-
-        <GridView.ItemsPanel>
-            <ItemsPanelTemplate>
-                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="232" ItemHeight="50" />
-            </ItemsPanelTemplate>
-        </GridView.ItemsPanel>
-        <GridView.ItemTemplate>
-            <DataTemplate x:DataType="core:ArtistEntry">
-                <Border Width="220" Height="40" CornerRadius="4" Padding="12,0"
-                        Background="{StaticResource BrandSurface}"
-                        BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
-                    <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
-                               FontFamily="{StaticResource BrandBodyFont}" FontSize="14"
-                               Foreground="{StaticResource BrandText}"
-                               TextTrimming="CharacterEllipsis" />
-                </Border>
-            </DataTemplate>
-        </GridView.ItemTemplate>
-    </GridView>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

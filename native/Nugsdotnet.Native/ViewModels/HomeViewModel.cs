@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
 using Nugsdotnet.Native.Core;
@@ -46,43 +47,50 @@ public sealed partial class ShowCard : ObservableObject
 }
 
 /// <summary>
-/// Home dashboard: time-of-day greeting, continue-listening hero, Recently
-/// Played + Stash rails, personal artists, and a filterable A–Z artist grid.
-/// Registered as a singleton — artists fetch once per session, the rails and
-/// continue card refresh on every visit.
+/// Home dashboard: the listening journal. Night heading, run state, last-night
+/// recap, VU meters, top artists, 14-night timeline, milestones, a slim resume
+/// strip, tonight's shelf (recents + stash merged), and your artists. The A–Z
+/// grid lives on ArtistsPage. Registered as a singleton — the journal, shelf,
+/// and resume strip refresh on every visit.
 /// </summary>
 public partial class HomeViewModel : ObservableObject
 {
-    private readonly NugsCatalog _catalog;
     private readonly RecentsStore _recents;
     private readonly StashStore _stash;
+    private readonly ListeningJournal _journal;
     private readonly ImageLoader _images;
     private readonly PlayerService _player;
-    private List<ArtistEntry> _all = new();
+    private readonly ArtistsViewModel _artists;
     private List<string?> _recentArtists = new();
     private List<string?> _stashArtists = new();
     private string? _continueArtPath;
 
-    public ObservableCollection<ArtistEntry> Artists { get; } = new();
+    public ObservableCollection<ShowCard> Shelf { get; } = new();
     public ObservableCollection<ArtistEntry> YourArtists { get; } = new();
-    public ObservableCollection<ShowCard> Recent { get; } = new();
-    public ObservableCollection<ShowCard> Stash { get; } = new();
-    public ObservableCollection<LetterChip> Letters { get; } = new();
+    public ObservableCollection<TopArtistRow> TopArtists { get; } = new();
+    public ObservableCollection<NightBar> Nights { get; } = new();
 
-    [ObservableProperty] public partial string Filter { get; set; } = "";
-    [ObservableProperty] public partial string? ActiveLetter { get; set; }
-    [ObservableProperty] public partial bool Busy { get; set; }
-    [ObservableProperty] public partial string? Status { get; set; }
-    [ObservableProperty] public partial string Greeting { get; set; } = "WELCOME BACK";
-    [ObservableProperty] public partial string ArtistsLabel { get; set; } = "ARTISTS";
-    [ObservableProperty] public partial string StashLabel { get; set; } = "STASH";
-    [ObservableProperty] public partial string RecentMeter { get; set; } = "0";
-    [ObservableProperty] public partial string StashMeter { get; set; } = "0";
-    [ObservableProperty] public partial string ArtistMeter { get; set; } = "0";
+    [ObservableProperty] public partial string Heading { get; set; } = "THE JOURNAL BEGINS TONIGHT";
+    [ObservableProperty] public partial string? RunLabel { get; set; }
+    [ObservableProperty] public partial string? RecapLine { get; set; }
+    [ObservableProperty] public partial bool HasJournal { get; set; }
+    [ObservableProperty] public partial bool HasTopArtists { get; set; }
+    [ObservableProperty] public partial string HoursText { get; set; } = "—";
+    [ObservableProperty] public partial string ShowsText { get; set; } = "—";
+    [ObservableProperty] public partial string TracksText { get; set; } = "—";
+    [ObservableProperty] public partial string HoursScale { get; set; } = "";
+    [ObservableProperty] public partial string ShowsScale { get; set; } = "";
+    [ObservableProperty] public partial string TracksScale { get; set; } = "";
+    [ObservableProperty] public partial double HoursNeedle { get; set; }
+    [ObservableProperty] public partial double ShowsNeedle { get; set; }
+    [ObservableProperty] public partial double TracksNeedle { get; set; }
+    [ObservableProperty] public partial double HoursRed { get; set; } = JournalMath.RedZoneStart;
+    [ObservableProperty] public partial double ShowsRed { get; set; } = JournalMath.RedZoneStart;
+    [ObservableProperty] public partial double TracksRed { get; set; }
+    [ObservableProperty] public partial string? MilestoneLine { get; set; }
+    [ObservableProperty] public partial string? NewMilestoneId { get; set; }
     [ObservableProperty] public partial bool HasContinue { get; set; }
     [ObservableProperty] public partial bool HasShow { get; set; }
-    [ObservableProperty] public partial bool IsFirstRun { get; set; }
-    [ObservableProperty] public partial bool IsFiltered { get; set; }
     [ObservableProperty] public partial string ContinueCue { get; set; } = "CONTINUE";
     [ObservableProperty] public partial string ContinueTitle { get; set; } = "";
     [ObservableProperty] public partial string ContinueSub { get; set; } = "";
@@ -94,107 +102,138 @@ public partial class HomeViewModel : ObservableObject
     public int StashTotal { get; private set; }
 
     public HomeViewModel(
-        NugsCatalog catalog, RecentsStore recents, StashStore stash,
-        ImageLoader images, PlayerService player)
+        RecentsStore recents, StashStore stash, ListeningJournal journal,
+        ImageLoader images, PlayerService player, ArtistsViewModel artists)
     {
-        _catalog = catalog;
         _recents = recents;
         _stash = stash;
+        _journal = journal;
         _images = images;
         _player = player;
+        _artists = artists;
     }
 
-    /// <summary>Rebuilds rails, meters, and the continue hero from disk + the player.</summary>
+    /// <summary>Rebuilds the journal hero, shelf, and resume strip from disk + the player.</summary>
     public async Task RefreshRailsAsync()
     {
-        Greeting = HomeDashboard.GreetingFor(DateTime.Now.Hour);
-        var plays = await _recents.LoadAsync();
-        Recent.Clear();
-        foreach (var p in plays) Recent.Add(new ShowCard(p));
-        _recentArtists = plays.Select(p => p.Artist).ToList();
+        var today = DateOnly.FromDateTime(DateTime.Now);
 
+        // ---- journal -------------------------------------------------------
+        var state = await _journal.LoadAsync();
+
+        Heading = JournalMath.NightHeading(today, state);
+        var run = JournalMath.Run(state.Days, today);
+        RunLabel = run.Current > 0
+            ? $"{run.Current}{(run.GraceNights > 0 ? "◇" : "◆")} NIGHT RUN · BEST {run.Best}"
+            : null;
+        RecapLine = JournalMath.Recap(DayOn(state, today.AddDays(-1)));
+        HasJournal = state.Days.Any(JournalMath.IsListeningNight) || state.Shows.Count > 0;
+
+        var hours = JournalMath.Hours(state);
+        var shows = (double)JournalMath.ShowsHeard(state);
+        var tracks = (double)state.TracksCompleted;
+        var hasData = hours > 0 || shows > 0 || tracks > 0;
+        HoursText = hasData ? $"{JournalMath.FormatHours(hours * 3600)} h" : "—";
+        ShowsText = hasData ? $"{shows:0}" : "—";
+        TracksText = hasData ? $"{tracks:0}" : "—";
+
+        var hoursNext = JournalMath.NextThreshold("hours", hours);
+        var showsNext = JournalMath.NextThreshold("shows", shows);
+        (HoursNeedle, HoursScale) = Meter(hours, hoursNext, v => $"next {v:0}");
+        (ShowsNeedle, ShowsScale) = Meter(shows, showsNext, v => $"next {v:0}");
+        // TRACKS has no milestones: fixed 0–1000 scale, no red zone.
+        TracksNeedle = Math.Clamp(tracks / JournalMath.TracksScaleEnd, 0, 1);
+        TracksScale = $"{JournalMath.TracksScaleEnd:0}";
+
+        TopArtists.Clear();
+        foreach (var row in JournalMath.TopArtists(state.Days, today))
+            TopArtists.Add(row);
+        HasTopArtists = TopArtists.Count > 0;
+
+        Nights.Clear();
+        foreach (var bar in JournalMath.Timeline(state.Days, today))
+            Nights.Add(bar);
+
+        MilestoneLine = JournalMath.MilestoneLine(state);
+        var newly = JournalMath.NewlyReached(state, today);
+        if (newly.Count > 0)
+        {
+            NewMilestoneId = newly[0];
+            state.Milestones.AddRange(newly.Select(id =>
+                new MilestoneReached(id, today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))));
+            await _journal.SaveAsync(state);
+        }
+        else
+        {
+            NewMilestoneId = null;
+        }
+
+        // ---- shelf + your artists -------------------------------------------
+        var plays = await _recents.LoadAsync();
+        _recentArtists = plays.Select(p => p.Artist).ToList();
         var stashed = await _stash.LoadAsync();
         StashTotal = stashed.Count;
-        Stash.Clear();
-        foreach (var s in stashed.Take(HomeDashboard.StashRailCap))
-            Stash.Add(new ShowCard(s));
         _stashArtists = stashed.Select(s => s.Artist).ToList();
-        StashLabel = HomeDashboard.StashLabel(stashed.Count);
+
+        RebuildShelf(plays, stashed);
+        RebuildYourArtists();
 
         RefreshContinue();
-        RebuildYourArtists();
-        RefreshMeters();
+        _ = LoadArtsAsync(Shelf.ToList());   // ImageLoader never throws
+    }
 
-        _ = LoadArtsAsync(Recent.Concat(Stash).ToList());   // ImageLoader never throws
+    /// <summary>Needle + right-hand scale label toward the next milestone.</summary>
+    private static (double Needle, string Scale) Meter(
+        double value, double? next, Func<double, string> render)
+    {
+        var s = JournalMath.Scale(value, next);
+        return (s.Needle, next is null ? "" : render(next.Value));
+    }
+
+    private static JournalDay? DayOn(JournalState state, DateOnly date) =>
+        state.Days.FirstOrDefault(d => d.Date == date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+
+    /// <summary>Recents first, deduped by container, stash filling behind, 24 cards.</summary>
+    private void RebuildShelf(IReadOnlyList<RecentPlay> plays, IReadOnlyList<StashEntry> stashed)
+    {
+        Shelf.Clear();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var p in plays)
+        {
+            if (Shelf.Count >= HomeDashboard.StashRailCap) break;
+            if (string.IsNullOrEmpty(p.ContainerId) || !seen.Add(p.ContainerId)) continue;
+            Shelf.Add(new ShowCard(p));
+        }
+        foreach (var s in stashed)
+        {
+            if (Shelf.Count >= HomeDashboard.StashRailCap) break;
+            if (string.IsNullOrEmpty(s.ContainerId) || !seen.Add(s.ContainerId)) continue;
+            Shelf.Add(new ShowCard(s));
+        }
     }
 
     /// <summary>Drops personal chrome so a signed-out shell cannot flash the
-    /// previous nugs account's stash/recents/continue card.</summary>
+    /// previous nugs account's journal/shelf/resume card.</summary>
     public void ResetRails()
     {
-        Recent.Clear();
-        Stash.Clear();
+        Shelf.Clear();
         YourArtists.Clear();
+        TopArtists.Clear();
+        Nights.Clear();
         _recentArtists = new();
         _stashArtists = new();
         StashTotal = 0;
-        StashLabel = HomeDashboard.StashLabel(0);
-        Filter = "";
-        ActiveLetter = null;
+        Heading = "THE JOURNAL BEGINS TONIGHT";
+        RunLabel = null;
+        RecapLine = null;
+        HasJournal = false;
+        HasTopArtists = false;
+        HoursText = ShowsText = TracksText = "—";
+        HoursScale = ShowsScale = TracksScale = "";
+        HoursNeedle = ShowsNeedle = TracksNeedle = 0;
+        MilestoneLine = null;
+        NewMilestoneId = null;
         ClearContinue();
-        RefreshMeters();
-        RebuildLetters();
-        ApplyFilter();
-    }
-
-    public async Task LoadArtistsAsync(bool force = false)
-    {
-        if (!force && _all.Count > 0)
-        {
-            RebuildLetters();
-            ApplyFilter();
-            RebuildYourArtists();
-            RefreshMeters();
-            return;
-        }
-        Busy = true;
-        Status = null;
-        try
-        {
-            _all = NugsCatalog.ParseArtists(await _catalog.GetAllArtistsAsync());
-            RebuildLetters();
-            ApplyFilter();
-            RebuildYourArtists();
-            RefreshMeters();
-            if (_all.Count == 0) Status = "No artists returned.";
-        }
-        catch (Exception ex)
-        {
-            Status = UserError.From(ex);
-        }
-        finally
-        {
-            Busy = false;
-        }
-    }
-
-    public Task ReloadArtistsAsync() => LoadArtistsAsync(force: true);
-
-    /// <summary>Toggles the A–Z bucket. Pressing the active letter clears it.</summary>
-    public void ToggleLetter(string? letter)
-    {
-        ActiveLetter = string.Equals(ActiveLetter, letter, StringComparison.Ordinal)
-            ? null : letter;
-        RebuildLetters();
-        ApplyFilter();
-    }
-
-    public void ClearFilters()
-    {
-        Filter = "";
-        ActiveLetter = null;
-        RebuildLetters();
-        ApplyFilter();
     }
 
     public void ToggleContinuePlayback()
@@ -203,14 +242,13 @@ public partial class HomeViewModel : ObservableObject
         RefreshContinue();
     }
 
-    /// <summary>Re-reads the player into the continue hero. Cheap — no disk.</summary>
+    /// <summary>Re-reads the player into the resume strip. Cheap — no disk.</summary>
     public void RefreshContinue()
     {
         var c = _player.Current;
         if (c is null)
         {
             ClearContinue();
-            RefreshMeters();
             return;
         }
 
@@ -261,37 +299,10 @@ public partial class HomeViewModel : ObservableObject
         ContinueArt = card.Art;
     }
 
-    partial void OnFilterChanged(string value) => ApplyFilter();
-
-    private void ApplyFilter()
-    {
-        var filtered = !string.IsNullOrWhiteSpace(Filter) || !string.IsNullOrWhiteSpace(ActiveLetter);
-        IsFiltered = filtered;
-        Artists.Clear();
-        foreach (var a in HomeDashboard.FilterArtists(_all, Filter, ActiveLetter))
-            Artists.Add(a);
-        ArtistsLabel = HomeDashboard.ArtistsLabel(Artists.Count, _all.Count, filtered);
-    }
-
-    private void RebuildLetters()
-    {
-        Letters.Clear();
-        foreach (var letter in HomeDashboard.LettersFor(_all))
-            Letters.Add(new LetterChip { Letter = letter, IsActive = letter == ActiveLetter });
-    }
-
     private void RebuildYourArtists()
     {
         YourArtists.Clear();
-        foreach (var a in HomeDashboard.YourArtists(_recentArtists, _stashArtists, _all))
+        foreach (var a in HomeDashboard.YourArtists(_recentArtists, _stashArtists, _artists.CatalogSnapshot()))
             YourArtists.Add(a);
-    }
-
-    private void RefreshMeters()
-    {
-        RecentMeter = Recent.Count.ToString();
-        StashMeter = StashTotal.ToString();
-        ArtistMeter = _all.Count.ToString();
-        IsFirstRun = Recent.Count == 0 && StashTotal == 0 && !HasContinue;
     }
 }

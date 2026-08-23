@@ -39,7 +39,8 @@ no content is downloaded, redistributed, or stripped of DRM. Personal use only.
 
 | | |
 |---|---|
-| **Home** | Time-of-day greeting, continue-listening hero, Recently Played and Stash rails, your artists, A–Z artist index |
+| **Home** | Listening journal — night count, VU meters with milestone red zones, top artists, 14-night timeline, resume strip, tonight's shelf |
+| **Artists** | Full A–Z index with letter jump + live filter |
 | **Browse** | Artist pages, set-grouped album pages, sectioned search |
 | **Transport** | Prev / −15 / play / +30 / next, scrub-safe seek, mute, lossless format badge |
 | **Inspector** | `Ctrl+D` — mini player, live SIGNAL PATH metrics, UP NEXT queue |

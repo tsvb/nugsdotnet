@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -16,11 +17,14 @@ public sealed partial class ArtistsPage : Page
         InitializeComponent();
         _vm = App.Services.GetRequiredService<ArtistsViewModel>();
         DataContext = _vm;
-        _vm.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(ArtistsViewModel.IsFiltered))
-                RefreshChrome();
-        };
+        _vm.PropertyChanged += OnVmPropertyChanged;
+        Unloaded += (_, _) => _vm.PropertyChanged -= OnVmPropertyChanged;
+    }
+
+    private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ArtistsViewModel.IsFiltered))
+            RefreshChrome();
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e) => await LoadAsync();
