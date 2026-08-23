@@ -32,7 +32,7 @@ public partial class StashViewModel : ObservableObject
         {
             var all = await _stash.LoadAsync();
             foreach (var s in all)
-                Items.Add(new ShowCard(s.ContainerId, s.Title, s.Artist, s.ImagePath));
+                Items.Add(new ShowCard(s));
             Heading = all.Count > 0 ? $"STASH · {all.Count}" : "STASH";
             if (all.Count == 0) Status = "Nothing stashed yet — star a show on its album page.";
             _ = LoadArtsAsync(Items.ToList());

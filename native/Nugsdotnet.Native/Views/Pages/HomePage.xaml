@@ -35,6 +35,20 @@
         <ItemsPanelTemplate x:Key="RailPanel">
             <StackPanel Orientation="Horizontal" Spacing="10" />
         </ItemsPanelTemplate>
+
+        <DataTemplate x:Key="ArtistChipTemplate" x:DataType="core:ArtistEntry">
+            <Button Style="{StaticResource CardButtonStyle}" Padding="0"
+                    Tag="{x:Bind}" Click="OnArtistChipClick">
+                <Border Width="220" Height="40" CornerRadius="4" Padding="12,0"
+                        Background="{StaticResource BrandSurface}"
+                        BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                    <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
+                               FontFamily="{StaticResource BrandBodyFont}" FontSize="14"
+                               Foreground="{StaticResource BrandText}"
+                               TextTrimming="CharacterEllipsis" />
+                </Border>
+            </Button>
+        </DataTemplate>
     </Page.Resources>
 
     <!-- The artist grid is the scrolling element; the hero + rails live in its
@@ -44,11 +58,38 @@
               IsItemClickEnabled="True" ItemClick="OnArtistClick">
 
         <GridView.Header>
-            <StackPanel Spacing="14" Margin="0,0,0,16">
-                <TextBlock Text="{Binding Greeting}"
-                           FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
-                           FontSize="34" CharacterSpacing="20"
-                           Foreground="{StaticResource BrandText}" />
+            <StackPanel Spacing="16" Margin="0,0,0,16">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                    <TextBlock Text="{Binding Greeting}"
+                               FontFamily="{StaticResource BrandDisplayFont}" FontWeight="ExtraBold"
+                               FontSize="34" CharacterSpacing="20"
+                               Foreground="{StaticResource BrandText}" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20"
+                                VerticalAlignment="Center">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding RecentMeter}"
+                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="16"
+                                       Foreground="{StaticResource BrandText}" HorizontalAlignment="Right" />
+                            <TextBlock Text="RECENT" Style="{StaticResource FaceplateLabelStyle}"
+                                       HorizontalAlignment="Right" />
+                        </StackPanel>
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding StashMeter}"
+                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="16"
+                                       Foreground="{StaticResource BrandText}" HorizontalAlignment="Right" />
+                            <TextBlock Text="STASH" Style="{StaticResource FaceplateLabelStyle}"
+                                       HorizontalAlignment="Right" />
+                        </StackPanel>
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding ArtistMeter}"
+                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="16"
+                                       Foreground="{StaticResource BrandText}" HorizontalAlignment="Right" />
+                            <TextBlock Text="ARTISTS" Style="{StaticResource FaceplateLabelStyle}"
+                                       HorizontalAlignment="Right" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <ProgressRing x:Name="BusyRing" IsActive="True" Visibility="Collapsed"
                                   Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
@@ -58,14 +99,59 @@
                             Style="{StaticResource IconButtonStyle}" Visibility="Collapsed" />
                 </StackPanel>
 
+                <TextBlock x:Name="FirstRunCue"
+                           Text="Search a band or open an artist — recents, stash, and resume land here."
+                           FontFamily="{StaticResource BrandBodyFont}" FontSize="13"
+                           Foreground="{StaticResource BrandDim}" Visibility="Collapsed" />
+
+                <!-- ── CONTINUE / ON THE DECK — resume hero ─────────────── -->
+                <StackPanel x:Name="ContinueSection" Spacing="10" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                Background="{StaticResource BrandAccent}" />
+                        <TextBlock Text="{Binding ContinueCue}" Style="{StaticResource FaceplateLabelStyle}"
+                                   Foreground="{StaticResource BrandAccent}" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                        <Button Style="{StaticResource CardButtonStyle}" Padding="0"
+                                Click="OnContinueOpen" IsEnabled="{Binding HasShow}">
+                            <Border Width="120" Height="120" CornerRadius="4"
+                                    Background="{StaticResource BrandSurface2}"
+                                    BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                                <Image Source="{Binding ContinueArt}" Stretch="UniformToFill" />
+                            </Border>
+                        </Button>
+                        <StackPanel VerticalAlignment="Center" Spacing="6">
+                            <TextBlock Text="{Binding ContinueTitle}"
+                                       FontFamily="{StaticResource BrandBodyFont}" FontWeight="SemiBold"
+                                       FontSize="18" Foreground="{StaticResource BrandText}"
+                                       TextWrapping="Wrap" MaxLines="2"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding ContinueSub}"
+                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                                       Foreground="{StaticResource BrandDim}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding ContinuePosition}"
+                                       FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                                       Foreground="{StaticResource BrandAccent}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                <Button Content="{Binding ContinuePlayLabel}" Click="OnContinuePlay"
+                                        Style="{StaticResource PlayButtonStyle}"
+                                        ToolTipService.ToolTip="Play / pause (Ctrl+Space)" />
+                                <Button x:Name="ContinueOpenButton" Content="open show"
+                                        Click="OnContinueOpen" Style="{StaticResource IconButtonStyle}"
+                                        Visibility="Collapsed" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
                 <!-- ── RECENTLY PLAYED — horizontal art-card rail ─────────── -->
                 <StackPanel x:Name="RecentSection" Spacing="10" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
                                 Background="{StaticResource BrandAccent}" />
-                        <TextBlock Text="RECENTLY PLAYED" FontFamily="{StaticResource BrandMonoFont}"
-                                   FontSize="11" CharacterSpacing="140"
-                                   Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Text="RECENTLY PLAYED" Style="{StaticResource FaceplateLabelStyle}" />
                     </StackPanel>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
@@ -82,9 +168,7 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                             <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
                                     Background="{StaticResource BrandAccent}" />
-                            <TextBlock Text="{Binding StashLabel}" FontFamily="{StaticResource BrandMonoFont}"
-                                       FontSize="11" CharacterSpacing="140"
-                                       Foreground="{StaticResource BrandDim}" />
+                            <TextBlock Text="{Binding StashLabel}" Style="{StaticResource FaceplateLabelStyle}" />
                         </StackPanel>
                         <Button Grid.Column="2" Content="see all" Click="OnSeeAllStash"
                                 Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" />
@@ -97,15 +181,49 @@
                     </ScrollViewer>
                 </StackPanel>
 
-                <!-- ── ARTISTS — header + live filter over the grid below ──── -->
-                <StackPanel Spacing="10" Margin="0,6,0,0">
+                <!-- ── YOUR ARTISTS — recents + stash, matched to the catalog -->
+                <StackPanel x:Name="YourArtistsSection" Spacing="10" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
                                 Background="{StaticResource BrandAccent}" />
-                        <TextBlock Text="{Binding ArtistsLabel}" FontFamily="{StaticResource BrandMonoFont}"
-                                   FontSize="11" CharacterSpacing="140"
-                                   Foreground="{StaticResource BrandDim}" />
+                        <TextBlock Text="YOUR ARTISTS" Style="{StaticResource FaceplateLabelStyle}" />
                     </StackPanel>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                        <ItemsControl ItemsSource="{Binding YourArtists}"
+                                      ItemsPanel="{StaticResource RailPanel}"
+                                      ItemTemplate="{StaticResource ArtistChipTemplate}" />
+                    </ScrollViewer>
+                </StackPanel>
+
+                <!-- ── ARTISTS — A–Z index + live filter over the grid below ─ -->
+                <StackPanel Spacing="10" Margin="0,6,0,0">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                            <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                    Background="{StaticResource BrandAccent}" />
+                            <TextBlock Text="{Binding ArtistsLabel}" Style="{StaticResource FaceplateLabelStyle}" />
+                        </StackPanel>
+                        <Button Grid.Column="2" x:Name="ClearFilterButton" Content="clear"
+                                Click="OnClearFilters" Style="{StaticResource IconButtonStyle}"
+                                HorizontalAlignment="Right" Visibility="Collapsed" />
+                    </Grid>
+                    <ItemsControl x:Name="LettersStrip" ItemsSource="{Binding Letters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="20" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LetterChip">
+                                <Button Content="{x:Bind Letter}" Tag="{x:Bind Letter}"
+                                        Click="OnLetterClick" Style="{StaticResource IconButtonStyle}"
+                                        Foreground="{x:Bind Foreground}" MinWidth="32" Padding="6,4"
+                                        FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                                        ToolTipService.ToolTip="Jump to letter" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <TextBox PlaceholderText="Filter artists…" MaxWidth="360" HorizontalAlignment="Left"
                              Text="{Binding Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
