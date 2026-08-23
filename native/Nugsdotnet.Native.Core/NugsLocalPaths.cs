@@ -16,6 +16,7 @@ public static class NugsLocalPaths
     public const string StashFileName = "stash.json";
     public const string RecentsFileName = "recents.json";
     public const string PlaybackFileName = "playback.json";
+    public const string JournalFileName = "journal.json";
 
     public static string DefaultRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -49,7 +50,7 @@ public static class NugsLocalPaths
     public static void MigrateLegacy(string root, string accountDir)
     {
         Directory.CreateDirectory(accountDir);
-        foreach (var name in new[] { StashFileName, RecentsFileName, PlaybackFileName })
+        foreach (var name in new[] { StashFileName, RecentsFileName, PlaybackFileName, JournalFileName })
         {
             var src = Path.Combine(root, name);
             var dst = Path.Combine(accountDir, name);
