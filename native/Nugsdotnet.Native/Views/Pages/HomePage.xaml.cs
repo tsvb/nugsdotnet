@@ -46,7 +46,8 @@ public sealed partial class HomePage : Page
         if (_artists.Artists.Count == 0)
         {
             await _artists.LoadArtistsAsync();
-            _ = _vm.RefreshRailsAsync();
+            await _vm.RefreshRailsAsync();
+            RefreshChrome();
         }
     }
 
