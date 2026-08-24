@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -14,6 +15,7 @@ public sealed partial class HomePage : Page
 {
     private readonly HomeViewModel _vm;
     private readonly ArtistsViewModel _artists;
+    private readonly DispatcherQueueTimer _refresh;
     private Storyboard? _pulse;
 
     public HomePage()
@@ -23,7 +25,18 @@ public sealed partial class HomePage : Page
         _artists = App.Services.GetRequiredService<ArtistsViewModel>();
         DataContext = _vm;
         _vm.PropertyChanged += OnVmPropertyChanged;
-        Unloaded += (_, _) => _vm.PropertyChanged -= OnVmPropertyChanged;
+        Unloaded += OnUnloaded;
+        // The journal hero only re-renders on navigation otherwise — keep it
+        // alive while the page is on screen (the tracker flushes ~every 60 s).
+        _refresh = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        _refresh.Interval = TimeSpan.FromSeconds(30);
+        _refresh.Tick += async (_, _) => await ReloadAsync();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        _refresh.Stop();
+        _vm.PropertyChanged -= OnVmPropertyChanged;
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -49,6 +62,7 @@ public sealed partial class HomePage : Page
             await _vm.RefreshRailsAsync();
             RefreshChrome();
         }
+        _refresh.Start();
     }
 
     private async Task ReloadAsync()
