@@ -71,8 +71,8 @@ public sealed class JournalTracker
     public async Task FlushNowAsync()
     {
         JournalState snapshot;
-        lock (_gate) snapshot = _state;
-        await _journal.SaveAsync(ListeningJournal.Prune(snapshot));
+        lock (_gate) snapshot = ListeningJournal.Prune(_state);
+        await _journal.SaveAsync(snapshot);
     }
 
     private void Tick()
