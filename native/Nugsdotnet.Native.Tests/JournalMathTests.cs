@@ -113,6 +113,17 @@ public class JournalMathTests
         Assert.True(bars[12].IsListening);            // 08-20
         Assert.False(bars[13].IsListening);           // today, nothing yet
         Assert.True(bars[7].IsListening);             // 08-15
+        // 600 s of the 3600 s floor = 17 %, anchored at the BOTTOM of the cell
+        // (remainder row first, fraction row last — the amber bar is row 1).
+        Assert.Equal("83*,17*", bars[12].BarStars);
+    }
+
+    [Fact]
+    public void BarStarsBottom_anchors_the_fraction_in_the_last_row()
+    {
+        Assert.Equal("70*,30*", JournalMath.BarStarsBottom(0.3));
+        Assert.Equal("2*,98*", JournalMath.BarStarsBottom(0.98));
+        Assert.Equal("98*,2*", JournalMath.BarStarsBottom(0.001));
     }
 
     [Fact]

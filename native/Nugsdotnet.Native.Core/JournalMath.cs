@@ -133,7 +133,7 @@ public static class JournalMath
                 day?.Seconds ?? 0,
                 listening,
                 !listening && grace.Contains(date),
-                BarStars(Math.Clamp((day?.Seconds ?? 0) / max, 0, 1)),
+                BarStarsBottom(Math.Clamp((day?.Seconds ?? 0) / max, 0, 1)),
                 day is null ? "" : NightToolTip(day)));
         }
         return list;
@@ -201,12 +201,22 @@ public static class JournalMath
         (seconds / 3600.0).ToString("0.#", CultureInfo.InvariantCulture);
 
     /// <summary>Star weights for a fraction-filled bar ("92*,8*"), clamped 2..98
-    /// so a sliver stays visible and a leader reads full.</summary>
+    /// so a sliver stays visible and a leader reads full. The fraction lands in
+    /// the FIRST cell — column bars fill from the left.</summary>
     public static string BarStars(double fraction)
     {
         var pct = (int)Math.Round(Math.Clamp(fraction, 0, 1) * 100);
         pct = Math.Clamp(pct, 2, 98);
         return $"{pct}*,{100 - pct}*";
+    }
+
+    /// <summary>Row variant: the fraction lands in the LAST row so a bar
+    /// anchored to the row's bottom edge has the fraction's height.</summary>
+    public static string BarStarsBottom(double fraction)
+    {
+        var pct = (int)Math.Round(Math.Clamp(fraction, 0, 1) * 100);
+        pct = Math.Clamp(pct, 2, 98);
+        return $"{100 - pct}*,{pct}*";
     }
 
     /// <summary>Threshold ids crossed but not yet fired — caller persists them.</summary>

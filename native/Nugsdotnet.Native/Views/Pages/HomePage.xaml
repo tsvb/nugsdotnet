@@ -106,8 +106,11 @@
                                                        TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" />
                                             <!-- bar scales to the leader via star weights
                                                  (definitions applied in OnStarsLoaded —
-                                                 WinUI rejects x:Bind on the collections) -->
-                                            <Grid Grid.Column="2" Height="6" VerticalAlignment="Center"
+                                                 WinUI rejects x:Bind on the collections).
+                                                 Fixed track width: the row sizes to content,
+                                                 so a star column here would collapse to 0. -->
+                                            <Grid Grid.Column="2" Width="150" Height="6"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Center"
                                                   Background="{StaticResource BrandSurface2}"
                                                   ColumnDefinitions="*"
                                                   Loaded="OnStarsLoaded" Tag="{x:Bind BarStars}">

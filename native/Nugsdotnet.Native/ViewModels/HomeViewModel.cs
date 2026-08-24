@@ -127,12 +127,15 @@ public partial class HomeViewModel : ObservableObject
             ? $"{run.Current}{(run.GraceNights > 0 ? "◇" : "◆")} NIGHT RUN · BEST {run.Best}"
             : null;
         RecapLine = JournalMath.Recap(DayOn(state, today.AddDays(-1)));
-        HasJournal = state.Days.Any(JournalMath.IsListeningNight) || state.Shows.Count > 0;
+        // The journal "starts running" at the first listening night (≥ 5 min):
+        // until then the day-one panel shows and the meters read —, so the
+        // heading and the meters never disagree mid-window.
+        HasJournal = state.Days.Any(JournalMath.IsListeningNight);
 
         var hours = JournalMath.Hours(state);
         var shows = (double)JournalMath.ShowsHeard(state);
         var tracks = (double)state.TracksCompleted;
-        var hasData = hours > 0 || shows > 0 || tracks > 0;
+        var hasData = HasJournal;
         HoursText = hasData ? $"{JournalMath.FormatHours(hours * 3600)} h" : "—";
         ShowsText = hasData ? $"{shows:0}" : "—";
         TracksText = hasData ? $"{tracks:0}" : "—";
