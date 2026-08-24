@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Nugsdotnet.Native.Views.Pages.ArtistsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="using:Nugsdotnet.Native.Core"
+    xmlns:vm="using:Nugsdotnet.Native.ViewModels"
+    Background="{StaticResource BrandBg}">
+
+    <Page.Resources>
+        <ItemsPanelTemplate x:Key="RailPanel">
+            <StackPanel Orientation="Horizontal" Spacing="10" />
+        </ItemsPanelTemplate>
+    </Page.Resources>
+
+    <!-- The grid is the scrolling element; header chrome rides along so
+         hundreds of artist chips stay virtualized. -->
+    <GridView Padding="24,20,24,12"
+              ItemsSource="{Binding Artists}" SelectionMode="None"
+              IsItemClickEnabled="True" ItemClick="OnArtistClick">
+
+        <GridView.Header>
+            <StackPanel Spacing="16" Margin="0,0,0,16">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <ProgressRing x:Name="BusyRing" IsActive="True" Visibility="Collapsed"
+                                  Width="22" Height="22" Foreground="{StaticResource BrandAccent}" />
+                    <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
+                               Foreground="{StaticResource BrandDim}" />
+                    <Button x:Name="RetryButton" Content="Retry" Click="OnRetry"
+                            Style="{StaticResource IconButtonStyle}" Visibility="Collapsed" />
+                </StackPanel>
+
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                            <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                                    Background="{StaticResource BrandAccent}" />
+                            <TextBlock Text="{Binding ArtistsLabel}" Style="{StaticResource FaceplateLabelStyle}" />
+                        </StackPanel>
+                        <Button Grid.Column="2" x:Name="ClearFilterButton" Content="clear"
+                                Click="OnClearFilters" Style="{StaticResource IconButtonStyle}"
+                                HorizontalAlignment="Right" Visibility="Collapsed" />
+                    </Grid>
+                    <ScrollViewer x:Name="LettersStrip"
+                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                        <ItemsControl ItemsSource="{Binding Letters}"
+                                      ItemsPanel="{StaticResource RailPanel}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LetterChip">
+                                    <Button Content="{x:Bind Letter}" Tag="{x:Bind Letter}"
+                                            Click="OnLetterClick" Style="{StaticResource IconButtonStyle}"
+                                            Foreground="{x:Bind Foreground}" MinWidth="32" Padding="6,4"
+                                            FontFamily="{StaticResource BrandMonoFont}" FontSize="12"
+                                            ToolTipService.ToolTip="Jump to letter" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBox PlaceholderText="Filter artists…" MaxWidth="360" HorizontalAlignment="Left"
+                             Text="{Binding Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+            </StackPanel>
+        </GridView.Header>
+
+        <GridView.ItemsPanel>
+            <ItemsPanelTemplate>
+                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="232" ItemHeight="50" />
+            </ItemsPanelTemplate>
+        </GridView.ItemsPanel>
+        <GridView.ItemTemplate>
+            <DataTemplate x:DataType="core:ArtistEntry">
+                <Border Width="220" Height="40" CornerRadius="4" Padding="12,0"
+                        Background="{StaticResource BrandSurface}"
+                        BorderBrush="{StaticResource BrandBorder}" BorderThickness="1">
+                    <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"
+                               FontFamily="{StaticResource BrandBodyFont}" FontSize="14"
+                               Foreground="{StaticResource BrandText}"
+                               TextTrimming="CharacterEllipsis" />
+                </Border>
+            </DataTemplate>
+        </GridView.ItemTemplate>
+    </GridView>
+</Page>

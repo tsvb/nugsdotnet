@@ -53,12 +53,15 @@ public partial class App : Application
         sc.AddSingleton(sp => new RecentsStore(sp.GetRequiredService<AccountLocalStore>()));
         sc.AddSingleton(sp => new StashStore(sp.GetRequiredService<AccountLocalStore>()));
         sc.AddSingleton(sp => new PlaybackStateStore(sp.GetRequiredService<AccountLocalStore>()));
+        sc.AddSingleton(sp => new ListeningJournal(sp.GetRequiredService<AccountLocalStore>()));
         sc.AddSingleton<ImageLoader>();
 
         sc.AddSingleton<PlayerService>();
+        sc.AddSingleton<JournalTracker>();
         sc.AddSingleton<ShellViewModel>();
         sc.AddTransient<LoginViewModel>();
         sc.AddSingleton<HomeViewModel>();
+        sc.AddSingleton<ArtistsViewModel>();
         sc.AddTransient<SearchResultsViewModel>();
         sc.AddTransient<ArtistViewModel>();
         sc.AddTransient<AlbumViewModel>();

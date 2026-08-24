@@ -28,7 +28,7 @@ Core has no WinUI types. The app references Core only.
 | Path | What |
 |---|---|
 | `%LOCALAPPDATA%\nugsdotnet\session.bin` | Access + refresh tokens. DPAPI CurrentUser + app entropy (`NDS1`). Older blobs still load and rewrite in place. |
-| `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` | `stash.json`, `recents.json`, `playback.json` — scoped to the nugs account, not the Windows profile. |
+| `%LOCALAPPDATA%\nugsdotnet\accounts\{userId}\` | `stash.json`, `recents.json`, `playback.json`, `journal.json` (listening journal — nights, shows, milestones) — scoped to the nugs account, not the Windows profile. |
 | `%LOCALAPPDATA%\nugsdotnet\` (root) | Window bounds. One live login per Windows user. |
 
 `userId` is the OIDC `sub`, sanitized so path segments cannot escape the accounts folder. Sign-out deletes `session.bin` and unbinds the account stores.
