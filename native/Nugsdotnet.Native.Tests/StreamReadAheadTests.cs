@@ -161,14 +161,17 @@ public class StreamReadAheadTests
     }
 
     [Fact]
-    public async Task Spanning_request_stops_at_the_window_edge()
+    public async Task Spanning_request_fills_count_across_the_window_edge()
     {
+        // IInputStream: a short read is EOF. Crossing a cache window must
+        // still return the full request or MF goes silent.
         var file = Bytes(512);
         var (ahead, fetches) = Ahead(file, windowSize: 256);
         var got = await ahead.ReadAsync(240, 32, 512, CancellationToken.None);
-        Assert.Equal(16, got.Length);
-        Assert.Equal(file.AsSpan(240, 16).ToArray(), got);
+        Assert.Equal(32, got.Length);
+        Assert.Equal(file.AsSpan(240, 32).ToArray(), got);
         Assert.Equal(1, fetches.Of(0));
+        Assert.Equal(1, fetches.Of(256));
     }
 
     private static byte[] Bytes(int n)

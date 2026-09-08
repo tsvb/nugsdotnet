@@ -175,15 +175,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
             return [];
         res.EnsureSuccessStatusCode();
 
-        // A 200 without Content-Range ignored Range — the body is the file head,
-        // not this window. Using it would loop the opening milliseconds of audio.
-        if (res.StatusCode == System.Net.HttpStatusCode.OK &&
-            start > 0 &&
-            res.Content.Headers.ContentRange is null)
-            return [];
-        if (res.Content.Headers.ContentRange?.From is long from && (ulong)from != start)
-            return [];
-
+        // Learn the true size from the first ranged response if we didn't know it.
         if (res.Content.Headers.ContentRange?.Length is long total) _size = (ulong)total;
 
         var want = (int)(end - start + 1);
