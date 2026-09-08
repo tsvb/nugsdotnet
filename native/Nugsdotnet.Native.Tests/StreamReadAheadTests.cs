@@ -5,21 +5,19 @@ namespace Nugsdotnet.Native.Tests;
 public class StreamReadAheadTests
 {
     [Fact]
-    public void WindowFor_aligns_and_clamps_to_size()
+    public void Align_snaps_to_chunk_start()
     {
-        var cache = new ByteRangeCache(windowSize: 256);
-        Assert.Equal((0UL, 255UL), cache.WindowFor(0, 10_000));
-        Assert.Equal((0UL, 255UL), cache.WindowFor(255, 10_000));
-        Assert.Equal((256UL, 511UL), cache.WindowFor(256, 10_000));
-        Assert.Equal((0UL, 99UL), cache.WindowFor(0, 100));
-        Assert.Equal((0UL, 255UL), cache.WindowFor(0, 0));
+        var ahead = new StreamReadAhead((_, _, _, _) => Task.CompletedTask, chunkSize: 256);
+        Assert.Equal(0UL, ahead.Align(0));
+        Assert.Equal(0UL, ahead.Align(255));
+        Assert.Equal(256UL, ahead.Align(256));
     }
 
     [Fact]
-    public async Task Sequential_small_reads_hit_one_window_download()
+    public async Task Sequential_small_reads_hit_one_chunk_download()
     {
         var file = Bytes(1000);
-        var (ahead, fetches) = Ahead(file, windowSize: 256);
+        var (ahead, fetches) = Ahead(file, chunkSize: 256);
 
         var pos = 0UL;
         for (var i = 0; i < 8; i++)
@@ -35,10 +33,10 @@ public class StreamReadAheadTests
     }
 
     [Fact]
-    public async Task Read_at_window_boundary_uses_the_prefetched_window()
+    public async Task Read_at_chunk_boundary_uses_the_prefetched_chunk()
     {
         var file = Bytes(600);
-        var (ahead, fetches) = Ahead(file, windowSize: 256);
+        var (ahead, fetches) = Ahead(file, chunkSize: 256);
 
         var first = await ahead.ReadAsync(0, 16, (ulong)file.Length, CancellationToken.None);
         Assert.Equal(file.AsSpan(0, 16).ToArray(), first);
@@ -50,19 +48,19 @@ public class StreamReadAheadTests
     }
 
     [Fact]
-    public async Task Concurrent_reads_of_the_same_window_download_once()
+    public async Task Concurrent_reads_of_the_same_chunk_download_once()
     {
         var file = Bytes(512);
         var started = new TaskCompletionSource();
         var release = new TaskCompletionSource();
         var log = new FetchLog();
 
-        var ahead = new StreamReadAhead(async (start, end, ct) =>
+        var ahead = new StreamReadAhead(async (start, end, write, ct) =>
         {
             log.Record(start);
             if (start == 0) { started.TrySetResult(); await release.Task; }
-            return Slice(file, start, end);
-        }, windowSize: 256);
+            write(Slice(file, start, end));
+        }, chunkSize: 256);
 
         var a = ahead.ReadAsync(0, 16, (ulong)file.Length, CancellationToken.None);
         var b = ahead.ReadAsync(32, 16, (ulong)file.Length, CancellationToken.None);
@@ -80,31 +78,33 @@ public class StreamReadAheadTests
     {
         var file = Bytes(64);
         var attempts = 0;
-        var ahead = new StreamReadAhead(async (start, end, ct) =>
+        var ahead = new StreamReadAhead(async (start, end, write, ct) =>
         {
-            if (start != 0) return Slice(file, start, end);
+            if (start != 0)
+            {
+                write(Slice(file, start, end));
+                return;
+            }
             if (Interlocked.Increment(ref attempts) == 1)
                 throw new InvalidOperationException("cdn blip");
-            return Slice(file, start, end);
-        }, windowSize: 32);
+            write(Slice(file, start, end));
+        }, chunkSize: 32);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => ahead.ReadAsync(0, 8, 64, CancellationToken.None));
         var got = await ahead.ReadAsync(0, 8, 64, CancellationToken.None);
         Assert.Equal(file.AsSpan(0, 8).ToArray(), got);
         Assert.Equal(2, attempts);
     }
 
     [Fact]
-    public async Task Sequential_playback_fetches_each_window_once()
+    public async Task Sequential_playback_fetches_each_chunk_once()
     {
         var file = Bytes(1024);
-        var (ahead, fetches) = Ahead(file, windowSize: 256);
+        var (ahead, fetches) = Ahead(file, chunkSize: 256);
         var pos = 0UL;
         while (pos < (ulong)file.Length)
         {
             var got = await ahead.ReadAsync(pos, 16, (ulong)file.Length, CancellationToken.None);
-            Assert.True(got.Length > 0);
+            Assert.Equal(16, got.Length);
             pos += (ulong)got.Length;
         }
         await ahead.PrefetchTask;
@@ -119,16 +119,16 @@ public class StreamReadAheadTests
     public async Task Read_past_end_returns_empty()
     {
         var file = Bytes(100);
-        var (ahead, _) = Ahead(file, windowSize: 256);
+        var (ahead, _) = Ahead(file, chunkSize: 256);
         Assert.Empty(await ahead.ReadAsync(100, 16, 100, CancellationToken.None));
         Assert.Empty(await ahead.ReadAsync(0, 0, 100, CancellationToken.None));
     }
 
     [Fact]
-    public async Task Short_final_window_returns_only_remaining_bytes()
+    public async Task Short_final_chunk_returns_only_remaining_bytes()
     {
         var file = Bytes(300);
-        var (ahead, _) = Ahead(file, windowSize: 256);
+        var (ahead, _) = Ahead(file, chunkSize: 256);
         await ahead.ReadAsync(0, 1, 300, CancellationToken.None);
         await ahead.PrefetchTask;
         var tail = await ahead.ReadAsync(256, 100, 300, CancellationToken.None);
@@ -137,41 +137,37 @@ public class StreamReadAheadTests
     }
 
     [Fact]
-    public void TryRead_serves_the_middle_of_a_window()
+    public async Task Spanning_request_fills_count_across_the_chunk_edge()
     {
-        var cache = new ByteRangeCache(windowSize: 32, maxWindows: 2);
-        var data = Bytes(32);
-        cache.Add(0, data);
-        Assert.True(cache.TryRead(8, 4, out var slice));
-        Assert.Equal(data.AsSpan(8, 4).ToArray(), slice);
-        Assert.Equal(24, cache.AvailableFrom(8));
-        Assert.False(cache.TryRead(30, 8, out _));
-    }
-
-    [Fact]
-    public void Add_evicts_the_oldest_window()
-    {
-        var cache = new ByteRangeCache(windowSize: 8, maxWindows: 2);
-        cache.Add(0, Bytes(8));
-        cache.Add(8, Bytes(8));
-        cache.Add(16, Bytes(8));
-        Assert.False(cache.HasWindow(0));
-        Assert.True(cache.HasWindow(8));
-        Assert.True(cache.HasWindow(16));
-    }
-
-    [Fact]
-    public async Task Spanning_request_fills_count_across_the_window_edge()
-    {
-        // IInputStream: a short read is EOF. Crossing a cache window must
-        // still return the full request or MF goes silent.
         var file = Bytes(512);
-        var (ahead, fetches) = Ahead(file, windowSize: 256);
+        var (ahead, fetches) = Ahead(file, chunkSize: 256);
         var got = await ahead.ReadAsync(240, 32, 512, CancellationToken.None);
         Assert.Equal(32, got.Length);
         Assert.Equal(file.AsSpan(240, 32).ToArray(), got);
         Assert.Equal(1, fetches.Of(0));
         Assert.Equal(1, fetches.Of(256));
+    }
+
+    [Fact]
+    public async Task Read_completes_before_the_rest_of_the_chunk_arrives()
+    {
+        var file = Bytes(64);
+        var first = new TaskCompletionSource();
+        var rest = new TaskCompletionSource();
+        var ahead = new StreamReadAhead(async (start, end, write, ct) =>
+        {
+            write(file.AsMemory(0, 8));
+            first.TrySetResult();
+            await rest.Task;
+            write(file.AsMemory(8, 56));
+        }, chunkSize: 64);
+
+        var read = ahead.ReadAsync(0, 8, 64, CancellationToken.None);
+        await first.Task;
+        var got = await read.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(file.AsSpan(0, 8).ToArray(), got);
+        rest.SetResult();
+        await ahead.PrefetchTask;
     }
 
     private static byte[] Bytes(int n)
@@ -181,15 +177,15 @@ public class StreamReadAheadTests
         return data;
     }
 
-    private static (StreamReadAhead Ahead, FetchLog Fetches) Ahead(byte[] file, int windowSize)
+    private static (StreamReadAhead Ahead, FetchLog Fetches) Ahead(byte[] file, int chunkSize)
     {
         var log = new FetchLog();
-        var ahead = new StreamReadAhead(async (start, end, ct) =>
+        var ahead = new StreamReadAhead(async (start, end, write, ct) =>
         {
             log.Record(start);
             await Task.Yield();
-            return Slice(file, start, end);
-        }, windowSize);
+            write(Slice(file, start, end));
+        }, chunkSize);
         return (ahead, log);
     }
 
