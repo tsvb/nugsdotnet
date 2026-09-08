@@ -5,6 +5,14 @@ namespace Nugsdotnet.Native.Tests;
 public class StreamReadAheadTests
 {
     [Fact]
+    public void Defaults_keep_about_a_minute_of_flac_ahead()
+    {
+        var ahead = new StreamReadAhead((_, _, _, _) => Task.CompletedTask);
+        Assert.Equal(8 * 1024 * 1024, ahead.TargetAhead);
+        Assert.Equal(16 * 1024 * 1024, ahead.MaxBytes);
+    }
+
+    [Fact]
     public void Align_snaps_to_chunk_start()
     {
         var ahead = new StreamReadAhead((_, _, _, _) => Task.CompletedTask, chunkSize: 256);

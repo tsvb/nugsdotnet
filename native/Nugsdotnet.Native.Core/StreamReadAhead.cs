@@ -6,12 +6,16 @@ namespace Nugsdotnet.Native.Core;
 /// Streaming read-ahead for HTTP range sources. Media Foundation issues 16–64 KB
 /// reads from several clones at once; a short IInputStream buffer is EOF (mute),
 /// and waiting on a full 1 MB GET before returning any bytes underruns the
-/// renderer. Chunks fill progressively, two downloads run at a time, and a few
-/// megabytes stay ahead of each read so playback does not stall at a boundary.
+/// renderer. Chunks fill progressively, two downloads run at a time, and about
+/// a minute of FLAC stays ahead of each read so a CDN blip does not underrun.
 /// </summary>
 public sealed class StreamReadAhead
 {
     public const int DefaultChunkSize = 256 * 1024;
+    /// <summary>~1 minute of typical 16-bit FLAC.</summary>
+    public const int DefaultTargetAhead = 8 * 1024 * 1024;
+    /// <summary>Playhead plus Media Foundation clones that also read the stream.</summary>
+    public const int DefaultMaxBytes = 16 * 1024 * 1024;
 
     private readonly Func<ulong, ulong, Action<ReadOnlyMemory<byte>>, CancellationToken, Task> _download;
     private readonly object _gate = new();
@@ -29,8 +33,8 @@ public sealed class StreamReadAhead
         if (chunkSize < 1) throw new ArgumentOutOfRangeException(nameof(chunkSize));
         _download = download;
         ChunkSize = chunkSize;
-        TargetAhead = targetAhead ?? 8 * chunkSize;
-        MaxBytes = maxBytes ?? 16 * chunkSize;
+        TargetAhead = targetAhead ?? DefaultTargetAhead;
+        MaxBytes = maxBytes ?? DefaultMaxBytes;
     }
 
     public int ChunkSize { get; }

@@ -31,8 +31,9 @@ public sealed class StreamIoStats
 /// An <see cref="IRandomAccessStream"/> backed by HTTP Range requests against the
 /// nugs CDN, injecting the required Referer + mobile User-Agent on every fetch.
 /// Media Foundation reads 16–64 KB at a time from several clones;
-/// <see cref="StreamReadAhead"/> fills 256 KB chunks as they arrive, keeps a
-/// few megabytes ahead, and never returns a short buffer except at true EOF.
+/// <see cref="StreamReadAhead"/> fills 256 KB chunks as they arrive, keeps
+/// ~8 MB ahead (~1 minute of FLAC), and never returns a short buffer except
+/// at true EOF.
 /// Read-only. Callers must pass a public HTTPS URL (see <see cref="NugsUri.IsSafeHttps"/>).
 /// </summary>
 public sealed class HttpAudioStream : IRandomAccessStream
