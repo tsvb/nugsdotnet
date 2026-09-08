@@ -67,7 +67,14 @@ public sealed class PlayerService
         _resolver = resolver;
         _auth = auth;
         _state = state;
-        _player = new MediaPlayer { AudioCategory = MediaPlayerAudioCategory.Media };
+        // Media + Multimedia: unpackaged MediaPlayer otherwise lands on the
+        // Console/Communications session — Windows AGC, Bluetooth HFP, and
+        // 1 s communications-ducking fades that pump the volume.
+        _player = new MediaPlayer
+        {
+            AudioCategory = MediaPlayerAudioCategory.Media,
+            AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia,
+        };
 
         // System Media Transport Controls: media keys + the system flyout. Our
         // handlers keep queue bookkeeping in charge (Handled suppresses the
@@ -85,6 +92,9 @@ public sealed class PlayerService
         // track's media actually opens (seeking before open is a no-op).
         _player.MediaOpened += (_, _) =>
         {
+            // Source open can recreate the WASAPI client — pin the session
+            // back to multimedia so communications ducking does not return.
+            EnsureMultimediaSession();
             TimeSpan? seek;
             lock (_gate)
             {
@@ -624,6 +634,12 @@ public sealed class PlayerService
             queue, index, _player.PlaybackSession.Position.TotalSeconds, Volume, IsMuted);
     }
 
+    private void EnsureMultimediaSession()
+    {
+        _player.AudioCategory = MediaPlayerAudioCategory.Media;
+        _player.AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia;
+    }
+
     /// <summary>Start a fresh playback list at a queue slot (initial play, or any
     /// jump whose target wasn't pre-rolled). Skips unplayable tracks forward.</summary>
     private async Task RebuildAtAsync(int startIndex)
@@ -683,6 +699,7 @@ public sealed class PlayerService
                 CurrentStream = resolved.Stream;
                 QueueVersion++;
             }
+            EnsureMultimediaSession();
             _player.Source = list;
             _player.Play();
             Status = null;
