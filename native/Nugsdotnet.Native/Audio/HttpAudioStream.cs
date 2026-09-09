@@ -30,6 +30,10 @@ public sealed class StreamIoStats
 /// <summary>
 /// An <see cref="IRandomAccessStream"/> backed by HTTP Range requests against the
 /// nugs CDN, injecting the required Referer + mobile User-Agent on every fetch.
+/// Media Foundation reads 16–64 KB at a time from several clones;
+/// <see cref="StreamReadAhead"/> fills 256 KB chunks as they arrive, keeps
+/// ~8 MB ahead (~1 minute of FLAC), and never returns a short buffer except
+/// at true EOF.
 /// Read-only. Callers must pass a public HTTPS URL (see <see cref="NugsUri.IsSafeHttps"/>).
 /// </summary>
 public sealed class HttpAudioStream : IRandomAccessStream
@@ -40,6 +44,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
     private readonly string _userAgent;
     private ulong _size;
     private ulong _position;
+    private readonly StreamReadAhead _ahead;
 
     public string ContentType { get; }
 
@@ -48,7 +53,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
 
     private HttpAudioStream(
         HttpClient http, Uri uri, string referer, string ua, ulong size, string contentType,
-        StreamIoStats? stats = null)
+        StreamIoStats? stats = null, StreamReadAhead? ahead = null)
     {
         _http = http;
         _uri = uri;
@@ -57,6 +62,7 @@ public sealed class HttpAudioStream : IRandomAccessStream
         _size = size;
         ContentType = contentType;
         Stats = stats ?? new StreamIoStats();
+        _ahead = ahead ?? new StreamReadAhead(DownloadRangeAsync);
     }
 
     /// <summary>
@@ -109,7 +115,10 @@ public sealed class HttpAudioStream : IRandomAccessStream
                 "CDN reported no content length (no 206 Content-Range and no Content-Length).");
         }
 
-        return new HttpAudioStream(http, uri, referer, ua, size, contentType);
+        var stream = new HttpAudioStream(http, uri, referer, ua, size, contentType);
+        try { await stream.WarmAsync(ct); }
+        catch { /* first Media Foundation read retries */ }
+        return stream;
     }
 
     public bool CanRead => true;
@@ -123,7 +132,8 @@ public sealed class HttpAudioStream : IRandomAccessStream
     }
 
     public IRandomAccessStream CloneStream() =>
-        new HttpAudioStream(_http, _uri, _referer, _userAgent, _size, ContentType, Stats) { _position = _position };
+        new HttpAudioStream(_http, _uri, _referer, _userAgent, _size, ContentType, Stats, _ahead)
+        { _position = _position };
 
     public IInputStream GetInputStreamAt(ulong position)
     {
@@ -145,34 +155,52 @@ public sealed class HttpAudioStream : IRandomAccessStream
             var start = _position;
             if (count == 0 || (_size > 0 && start >= _size)) return Array.Empty<byte>().AsBuffer();
 
-            var end = start + count - 1;
-            if (_size > 0) end = Math.Min(end, _size - 1);
-            // Cap a single ranged GET so a CDN that ignores Range cannot dump
-            // an entire FLAC into memory on one Media Foundation read.
-            const uint maxChunk = 1024 * 1024;
-            if (end - start + 1 > maxChunk) end = start + maxChunk - 1;
-
-            using var req = new HttpRequestMessage(HttpMethod.Get, _uri);
-            req.Headers.TryAddWithoutValidation("Referer", _referer);
-            req.Headers.TryAddWithoutValidation("User-Agent", _userAgent);
-            req.Headers.Range = new RangeHeaderValue((long)start, (long)end);
-            using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, token);
-
-            // An over-read past the real end returns 416. The WinRT EOF signal is an
-            // empty buffer, never a throw (which would surface as MediaFailed).
-            if (res.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
-                return Array.Empty<byte>().AsBuffer();
-            res.EnsureSuccessStatusCode();
-
-            // Learn the true size from the first ranged response if we didn't know it.
-            if (res.Content.Headers.ContentRange?.Length is long total) _size = (ulong)total;
-
-            var want = (int)(end - start + 1);
-            var bytes = await ReadAtMostAsync(res, want, token);
+            var bytes = await _ahead.ReadAsync(start, count, _size, token);
             _position = start + (ulong)bytes.Length;
-            Stats.Record(bytes.Length);
             return bytes.AsBuffer();
         });
+    }
+
+    internal Task WarmAsync(CancellationToken ct) => _ahead.WarmAsync(_size, ct);
+
+    /// <summary>
+    /// One chunk GET. Writes into the cache as bytes arrive so a 16 KB MF read
+    /// does not wait on the rest of the chunk. Caps at the requested range so a
+    /// CDN that ignores Range cannot dump an entire FLAC into memory.
+    /// </summary>
+    private async Task DownloadRangeAsync(
+        ulong start, ulong end, Action<ReadOnlyMemory<byte>> write, CancellationToken token)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, _uri);
+        req.Headers.TryAddWithoutValidation("Referer", _referer);
+        req.Headers.TryAddWithoutValidation("User-Agent", _userAgent);
+        req.Headers.Range = new RangeHeaderValue((long)start, (long)end);
+        using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, token);
+
+        // An over-read past the real end returns 416. The WinRT EOF signal is an
+        // empty buffer, never a throw (which would surface as MediaFailed).
+        if (res.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+            return;
+        res.EnsureSuccessStatusCode();
+
+        // Never shrink Size: a later Content-Range that reports the chunk length
+        // as the total would make Media Foundation think the track ended.
+        if (res.Content.Headers.ContentRange?.Length is long total && (ulong)total > _size)
+            _size = (ulong)total;
+
+        var remaining = (int)(end - start + 1);
+        await using var stream = await res.Content.ReadAsStreamAsync(token);
+        var buf = new byte[8192];
+        var fetched = 0;
+        while (remaining > 0)
+        {
+            var n = await stream.ReadAsync(buf.AsMemory(0, Math.Min(buf.Length, remaining)), token);
+            if (n == 0) break;
+            write(buf.AsMemory(0, n));
+            remaining -= n;
+            fetched += n;
+        }
+        Stats.Record(fetched);
     }
 
     public IAsyncOperationWithProgress<uint, uint> WriteAsync(IBuffer buffer) =>
@@ -184,25 +212,5 @@ public sealed class HttpAudioStream : IRandomAccessStream
     public void Dispose()
     {
         // The HttpClient is shared/owned by DI — nothing to release here.
-    }
-
-    /// <summary>Reads at most <paramref name="max"/> bytes, discarding the rest
-    /// of a response that ignored the Range header.</summary>
-    private static async Task<byte[]> ReadAtMostAsync(
-        HttpResponseMessage res, int max, CancellationToken token)
-    {
-        await using var stream = await res.Content.ReadAsStreamAsync(token);
-        var buf = new byte[max];
-        var read = 0;
-        while (read < max)
-        {
-            var n = await stream.ReadAsync(buf.AsMemory(read, max - read), token);
-            if (n == 0) break;
-            read += n;
-        }
-        if (read == max) return buf;
-        var slice = new byte[read];
-        System.Buffer.BlockCopy(buf, 0, slice, 0, read);
-        return slice;
     }
 }
