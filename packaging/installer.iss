@@ -12,6 +12,8 @@
 #define MyAppName "nugsdotnet"
 #define MyAppPublisher "Tim Vanbenschoten"
 #define MyAppURL "https://github.com/tsvb/nugsdotnet"
+; The project page; Windows shows it as the app's "About" link in Installed apps.
+#define MyAppHomeURL "https://timvanbenschoten.com/code/nugsdotnet"
 #define MyAppExeName "Nugsdotnet.Native.exe"
 
 [Setup]
@@ -21,7 +23,7 @@ AppId={{8B3F2A14-9C7D-4E6B-A1F0-5D2E7C9B4A60}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
+AppPublisherURL={#MyAppHomeURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
