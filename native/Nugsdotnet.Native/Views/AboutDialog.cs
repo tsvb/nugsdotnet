@@ -12,7 +12,9 @@ public static class AboutDialog
         var version = checker.CurrentVersion;
         var body = $"Version {version.Major}.{version.Minor}.{version.Build}\n\n" +
                    "A personal hi-fi front panel for nugs.net live music.\n" +
-                   "Not affiliated with nugs.net.";
+                   "Not affiliated with nugs.net.\n\n" +
+                   "Made by Tim VanBenschoten\n" +
+                   "timvanbenschoten.com/code/nugsdotnet";
         if (update is not null)
             body += $"\n\nUpdate available: v{update.Tag}\n{update.Url}";
 

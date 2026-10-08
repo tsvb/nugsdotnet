@@ -125,5 +125,5 @@ Media keys and the Windows media flyout work too.
 ---
 
 <p align="center"><sub>
-Built with .NET 10 · WinUI 3 · Windows App SDK — for personal use against your own nugs.net subscription. Not affiliated with nugs.net.
+Built with .NET 10 · WinUI 3 · Windows App SDK — for personal use against your own nugs.net subscription. Not affiliated with nugs.net. Made by <a href="https://timvanbenschoten.com">Tim VanBenschoten</a>.
 </sub></p>

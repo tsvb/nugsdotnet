@@ -72,6 +72,8 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: packaging/Output/nugsdotnet-${{ steps.ver.outputs.version }}-x64-setup.exe
+          # Placed ahead of the generated notes.
+          body: "Project page: https://timvanbenschoten.com/code/nugsdotnet"
           generate_release_notes: true
 
       - name: Generate winget manifests from template (always)

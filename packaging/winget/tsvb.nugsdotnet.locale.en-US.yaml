@@ -3,9 +3,9 @@ PackageIdentifier: tsvb.nugsdotnet
 PackageVersion: 0.3.0
 PackageLocale: en-US
 Publisher: Tim Vanbenschoten
-PublisherUrl: https://github.com/tsvb
+PublisherUrl: https://timvanbenschoten.com
 PackageName: nugsdotnet
-PackageUrl: https://github.com/tsvb/nugsdotnet
+PackageUrl: https://timvanbenschoten.com/code/nugsdotnet
 License: MIT
 LicenseUrl: https://github.com/tsvb/nugsdotnet/blob/main/LICENSE
 Copyright: Copyright (c) 2026 Tim Vanbenschoten
