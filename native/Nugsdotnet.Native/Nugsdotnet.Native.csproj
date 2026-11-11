@@ -37,7 +37,7 @@
          (CommunityToolkit/dotnet#1139); 8.4.1+ ships the Roslyn 5.0 generator fix.
          WinUI 3 wants partial properties (MVVMTK0045) so CsWinRT can emit marshalling. -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>
