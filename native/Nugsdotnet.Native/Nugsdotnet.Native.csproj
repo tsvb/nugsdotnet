@@ -32,7 +32,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
     <!-- 8.4.0's source generator fails to compile [ObservableProperty] on .NET 10
          (CommunityToolkit/dotnet#1139); 8.4.1+ ships the Roslyn 5.0 generator fix.
          WinUI 3 wants partial properties (MVVMTK0045) so CsWinRT can emit marshalling. -->
